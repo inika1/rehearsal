@@ -1,5 +1,4 @@
-name: CI
-
+name: CI/CD
 
 on:
   push:
@@ -9,12 +8,11 @@ on:
 
 jobs:
 
+  # BACKEND + SUPABASE
+
   backend:
     name: Backend (lint + test)
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: backend
     steps:
       - uses: actions/checkout@v4
 
@@ -24,11 +22,50 @@ jobs:
           cache: npm
           cache-dependency-path: backend/package-lock.json
 
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      - name: Start local Supabase
+        run: supabase start
+
+      - name: Get Supabase credentials
+        id: supabase
+        run: |
+          SERVICE_KEY=$(supabase status -o json | jq -r '.SERVICE_ROLE_KEY')
+          echo "service_role_key=$SERVICE_KEY" >> $GITHUB_OUTPUT
+
       - name: Install
         run: npm ci
+        working-directory: backend
 
       - name: Lint
         run: npm run lint
+        working-directory: backend
 
       - name: Test
         run: npm test
+        working-directory: backend
+        env:
+          SUPABASE_URL: http://localhost:54321
+          SUPABASE_SERVICE_ROLE_KEY: ${{ steps.supabase.outputs.service_role_key }}
+
+
+  # DEPLOY
+
+  deploy-backend:
+    name: Deploy backend (Railway)
+    needs: [backend]
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Deploy to Railway
+        run: |
+          npm i -g @railway/cli
+          railway up --service "$RAILWAY_SERVICE" --detach
+        working-directory: backend
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+          RAILWAY_SERVICE: ${{ secrets.RAILWAY_SERVICE }}
