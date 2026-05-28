@@ -1,7 +1,7 @@
-import express from 'express';
 import cors from 'cors';
-import people from './routes/people.js';
+import express from 'express';
 import conversations from './routes/conversations.js';
+import people from './routes/people.js';
 
 const app = express();
 app.use(express.json());
@@ -19,7 +19,7 @@ app.get('/health', (req, res) => res.json({ ok: true }));
 app.use('/api/people', people);
 app.use('/api/conversations', conversations);
 
-const port = process.env.PORT || 4000;
+const port = process.env.PORT || 8080;
 app.listen(port, () => {
   console.log(`[rehearsal-backend] listening on :${port}`);
 });
