@@ -75,7 +75,7 @@ jobs:
         working-directory: mobile
 
       - name: Export check
-        run: npx expo export --platform web --output-dir /tmp/expo-check
+        run: npx expo export --platform ios --output-dir /tmp/expo-check
         working-directory: mobile
 
 
