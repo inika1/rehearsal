@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
@@ -102,7 +102,7 @@ export default function App() {
 function ChooseScreen({ people, onPick, onAdd }) {
   return (
     <div className="scr">
-      <div className="hd"><div className="ttl">Choose person</div><div className="sub">Who do you need to talk to?</div></div>
+      <div className="hd"><div className="ttl">Choose someone</div><div className="sub">Who do you need to talk to?</div></div>
       <div className="people">
         {people.slice(0, 3).map((p, i) => (
           <div className="person" key={p.id} onClick={() => onPick(p)}>

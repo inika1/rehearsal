@@ -1,15 +1,15 @@
 import { StatusBar } from 'expo-status-bar';
 import { useEffect, useRef, useState } from 'react';
 import {
-    Animated, Easing,
-    KeyboardAvoidingView,
-    Modal,
-    Platform,
-    SafeAreaView,
-    ScrollView,
-    StyleSheet,
-    Text, TextInput, TouchableOpacity,
-    View,
+  Animated, Easing,
+  KeyboardAvoidingView,
+  Modal,
+  Platform,
+  SafeAreaView,
+  ScrollView,
+  StyleSheet,
+  Text, TextInput, TouchableOpacity,
+  View,
 } from 'react-native';
 
 // When testing on a physical device, change this to your machine's local IP.
@@ -174,7 +174,7 @@ function ChooseScreen({ people, onPick, onAdd }) {
   return (
     <View style={s.scr}>
       <View style={s.hd}>
-        <Text style={s.ttl}>Choose person</Text>
+        <Text style={s.ttl}>Choose someone</Text>
         <Text style={s.sub}>Who do you need to talk to?</Text>
       </View>
       <View style={s.people}>
