@@ -1,14 +1,20 @@
-import React, { useState, useEffect, useRef } from 'react';
-import {
-  View, Text, TextInput, TouchableOpacity, ScrollView,
-  StyleSheet, Animated, Easing, SafeAreaView,
-  KeyboardAvoidingView, Platform, Modal,
-} from 'react-native';
 import { StatusBar } from 'expo-status-bar';
+import { useEffect, useRef, useState } from 'react';
+import {
+    Animated, Easing,
+    KeyboardAvoidingView,
+    Modal,
+    Platform,
+    SafeAreaView,
+    ScrollView,
+    StyleSheet,
+    Text, TextInput, TouchableOpacity,
+    View,
+} from 'react-native';
 
 // When testing on a physical device, change this to your machine's local IP.
 // e.g. 'http://192.168.1.42:4000'
-const API = 'http://localhost:4000';
+const API = 'https://rehearsal-production-5d15.up.railway.app';
 
 const j = (r) => r.json();
 const api = {

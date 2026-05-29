@@ -20,6 +20,6 @@ app.use('/api/people', people);
 app.use('/api/conversations', conversations);
 
 const port = process.env.PORT || 8080;
-app.listen(port, () => {
+app.listen(port, '0.0.0.0', () => {
   console.log(`[rehearsal-backend] listening on :${port}`);
 });
