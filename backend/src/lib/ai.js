@@ -19,10 +19,14 @@ async function callClaude(system, messages, maxTokens = 400) {
 export async function replyAs(person, situation, history) {
   if (!API_KEY) {
     const canned = [
-      `Hey — what's up?`,
-      `Oh. I didn't realise that was bothering you.`,
-      `Okay, that's fair. What do you want me to do?`,
-      `Alright, I hear you. Let's sort it out.`,
+      `Can you briefly describe the situation that\'s bothering you?`,
+      `How long has this issue been affecting you?`,
+      `What emotions are you feeling most strongly right now?`,
+      `What part of the situation is affecting you the most?`,
+      `What would a successful outcome of this conversation look like for you?`,
+      `Why do you think the other person might be acting this way?`,
+      `If they were describing this situation, what do you think they would say?`,
+      `What worries you most about having this conversation?`,
     ];
     return (
       canned[Math.min(history.filter((m) => m.role === 'me').length - 1, canned.length - 1)] ||
