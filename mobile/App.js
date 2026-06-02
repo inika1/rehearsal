@@ -80,8 +80,9 @@ export default function App() {
   const startCall = async () => {
     const title = situation.split(' ').slice(0, 3).join(' ') || 'Untitled';
     const conv = await api.startConversation(person.id, title, situation);
-    setConversation(conv);
-    setMessages([]);
+    const fullConv = await api.getConversation(conv.id);
+    setConversation(fullConv);
+    setMessages(fullConv.messages || []);
     setScreen('call');
   };
 

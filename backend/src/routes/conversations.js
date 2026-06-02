@@ -1,6 +1,6 @@
 import { Router } from 'express';
+import { analyse, replyAs } from '../lib/ai.js';
 import { supabase } from '../lib/supabase.js';
-import { replyAs, analyse } from '../lib/ai.js';
 
 const router = Router();
 
@@ -31,6 +31,13 @@ router.post('/', async (req, res) => {
     .select()
     .single();
   if (error) return res.status(500).json({ error: error.message });
+  
+  // Auto-insert the first AI message (first pre-set question)
+  const firstQuestion = `Can you briefly describe the situation that's bothering you?`;
+  await supabase
+    .from('messages')
+    .insert({ conversation_id: data.id, role: 'them', content: firstQuestion });
+  
   res.json(data);
 });
 
