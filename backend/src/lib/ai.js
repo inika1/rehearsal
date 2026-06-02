@@ -19,7 +19,6 @@ async function callClaude(system, messages, maxTokens = 400) {
 export async function replyAs(person, situation, history) {
   if (!API_KEY) {
     const canned = [
-      `Can you briefly describe the situation that\'s bothering you?`,
       `How long has this issue been affecting you?`,
       `What emotions are you feeling most strongly right now?`,
       `What part of the situation is affecting you the most?`,
