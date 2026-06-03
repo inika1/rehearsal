@@ -255,6 +255,7 @@ function CallScreen({ person, conversation, messages, setMessages, onEnd }) {
   const scrollRef = useRef(null);
   const micPulse = useRef(new Animated.Value(1)).current;
   const micAnim = useRef(null);
+  const webRecognition = useRef(null);
 
   useEffect(() => {
     timer.current = setInterval(() => setSecs((n) => n + 1), 1000);
@@ -280,15 +281,14 @@ function CallScreen({ person, conversation, messages, setMessages, onEnd }) {
   }, [listening]);
 
   useSpeechRecognitionEvent('result', (event) => {
+    if (Platform.OS === 'web') return;
     const text = event.results[0]?.transcript ?? '';
     setInput(text);
-    if (event.isFinal && text.trim()) {
-      sendText(text.trim());
-    }
+    if (event.isFinal && text.trim()) sendText(text.trim());
   });
 
-  useSpeechRecognitionEvent('end', () => setListening(false));
-  useSpeechRecognitionEvent('error', () => setListening(false));
+  useSpeechRecognitionEvent('end', () => { if (Platform.OS !== 'web') setListening(false); });
+  useSpeechRecognitionEvent('error', () => { if (Platform.OS !== 'web') setListening(false); });
 
   const fmt = (n) =>
     `${String(Math.floor(n / 60)).padStart(2, '0')}:${String(n % 60).padStart(2, '0')}`;
@@ -306,15 +306,38 @@ function CallScreen({ person, conversation, messages, setMessages, onEnd }) {
   const say = () => sendText(input.trim());
 
   const toggleMic = async () => {
-    if (listening) {
-      ExpoSpeechRecognitionModule.stop();
-      return;
+    if (Platform.OS === 'web') {
+      if (listening) {
+        webRecognition.current?.stop();
+        return;
+      }
+      const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+      if (!SR) return;
+      const rec = new SR();
+      rec.lang = 'en-US';
+      rec.interimResults = true;
+      rec.onresult = (e) => {
+        const text = Array.from(e.results).map((r) => r[0].transcript).join('');
+        setInput(text);
+        if (e.results[e.results.length - 1].isFinal && text.trim()) sendText(text.trim());
+      };
+      rec.onend = () => setListening(false);
+      rec.onerror = () => setListening(false);
+      webRecognition.current = rec;
+      setInput('');
+      setListening(true);
+      rec.start();
+    } else {
+      if (listening) {
+        ExpoSpeechRecognitionModule.stop();
+        return;
+      }
+      const { granted } = await ExpoSpeechRecognitionModule.requestPermissionsAsync();
+      if (!granted) return;
+      setInput('');
+      setListening(true);
+      ExpoSpeechRecognitionModule.start({ lang: 'en-US', interimResults: true });
     }
-    const { granted } = await ExpoSpeechRecognitionModule.requestPermissionsAsync();
-    if (!granted) return;
-    setInput('');
-    setListening(true);
-    ExpoSpeechRecognitionModule.start({ lang: 'en-US', interimResults: true });
   };
 
   return (
