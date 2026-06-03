@@ -180,19 +180,25 @@ function ChooseScreen({ people, onPick, onAdd }) {
         <Text style={s.ttl}>Choose someone</Text>
         <Text style={s.sub}>Who do you need to talk to?</Text>
       </View>
-      <View style={s.people}>
-        {people.map((p, i) => (
-          <TouchableOpacity key={p.id} onPress={() => onPick(p)} style={s.person}>
-            <View style={[s.pcircle, { backgroundColor: colorFor(i) + '2e' }]}> 
-              <Text style={[s.pcircleText, { color: colorFor(i) }]}>{p.name[0]}</Text>
-            </View>
-            <Text style={s.pname}>{p.name}</Text>
-          </TouchableOpacity>
-        ))}
+
+      <ScrollView contentContainerStyle={s.peopleScroll} style={{ flex: 1 }}>
+        <View style={s.people}>
+          {people.map((p, i) => (
+            <TouchableOpacity key={p.id} onPress={() => onPick(p)} style={s.person}>
+              <View style={[s.pcircle, { backgroundColor: colorFor(i) + '2e' }]}> 
+                <Text style={[s.pcircleText, { color: colorFor(i) }]}>{p.name[0]}</Text>
+              </View>
+              <Text style={s.pname}>{p.name}</Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+      </ScrollView>
+
+      <View style={s.footer}>
+        <TouchableOpacity onPress={onAdd} style={s.addnew}>
+          <Text style={s.addnewTx}>＋  Add new person</Text>
+        </TouchableOpacity>
       </View>
-      <TouchableOpacity onPress={onAdd} style={s.addnew}>
-        <Text style={s.addnewTx}>＋  Add new person</Text>
-      </TouchableOpacity>
     </View>
   );
 }
@@ -585,11 +591,12 @@ const s = StyleSheet.create({
   // Choose
   people: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-around', paddingHorizontal: 24, paddingTop: 30, paddingBottom: 10 },
   person: { alignItems: 'center', gap: 9, marginBottom: 12 },
+  peopleScroll: { paddingHorizontal: 0, paddingBottom: 12 },
+  footer: { paddingHorizontal: 20, paddingBottom: 20 },
   pcircle: { width: 66, height: 66, borderRadius: 33, alignItems: 'center', justifyContent: 'center' },
   pcircleText: { fontSize: 24, fontWeight: '600' },
   pname: { fontSize: 12, color: 'rgba(255,255,255,.55)' },
-  addnew: { marginHorizontal: 20, marginTop: 'auto', marginBottom: 26, padding: 16,
-    borderWidth: 1, borderStyle: 'dashed', borderColor: 'rgba(255,255,255,.15)', borderRadius: 14 },
+  addnew: { width: '100%', padding: 16, borderWidth: 1, borderStyle: 'dashed', borderColor: 'rgba(255,255,255,.15)', borderRadius: 14, backgroundColor: 'transparent' },
   addnewTx: { color: 'rgba(255,255,255,.5)', fontSize: 14, textAlign: 'center' },
 
   // Describe
