@@ -1,4 +1,5 @@
 import { StatusBar } from 'expo-status-bar';
+import { ExpoSpeechRecognitionModule, useSpeechRecognitionEvent } from 'expo-speech-recognition';
 import { useEffect, useRef, useState } from 'react';
 import {
   Animated, Easing,
@@ -249,26 +250,71 @@ function CallScreen({ person, conversation, messages, setMessages, onEnd }) {
   const [secs, setSecs] = useState(0);
   const [input, setInput] = useState('');
   const [busy, setBusy] = useState(false);
+  const [listening, setListening] = useState(false);
   const timer = useRef(null);
   const scrollRef = useRef(null);
+  const micPulse = useRef(new Animated.Value(1)).current;
+  const micAnim = useRef(null);
 
   useEffect(() => {
     timer.current = setInterval(() => setSecs((n) => n + 1), 1000);
-    return () => clearInterval(timer.current);
+    return () => {
+      clearInterval(timer.current);
+      ExpoSpeechRecognitionModule.stop();
+    };
   }, []);
+
+  useEffect(() => {
+    if (listening) {
+      micAnim.current = Animated.loop(
+        Animated.sequence([
+          Animated.timing(micPulse, { toValue: 0.3, duration: 500, useNativeDriver: true }),
+          Animated.timing(micPulse, { toValue: 1, duration: 500, useNativeDriver: true }),
+        ])
+      );
+      micAnim.current.start();
+    } else {
+      micAnim.current?.stop();
+      Animated.timing(micPulse, { toValue: 1, duration: 150, useNativeDriver: true }).start();
+    }
+  }, [listening]);
+
+  useSpeechRecognitionEvent('result', (event) => {
+    const text = event.results[0]?.transcript ?? '';
+    setInput(text);
+    if (event.isFinal && text.trim()) {
+      sendText(text.trim());
+    }
+  });
+
+  useSpeechRecognitionEvent('end', () => setListening(false));
+  useSpeechRecognitionEvent('error', () => setListening(false));
 
   const fmt = (n) =>
     `${String(Math.floor(n / 60)).padStart(2, '0')}:${String(n % 60).padStart(2, '0')}`;
 
-  const say = async () => {
-    if (!input.trim() || busy) return;
-    const mine = { role: 'me', content: input };
-    setMessages((m) => [...m, mine]);
+  const sendText = async (text) => {
+    if (!text || busy) return;
+    setMessages((m) => [...m, { role: 'me', content: text }]);
     setInput('');
     setBusy(true);
-    const { reply } = await api.sendTurn(conversation.id, mine.content);
+    const { reply } = await api.sendTurn(conversation.id, text);
     setMessages((m) => [...m, { role: 'them', content: reply }]);
     setBusy(false);
+  };
+
+  const say = () => sendText(input.trim());
+
+  const toggleMic = async () => {
+    if (listening) {
+      ExpoSpeechRecognitionModule.stop();
+      return;
+    }
+    const { granted } = await ExpoSpeechRecognitionModule.requestPermissionsAsync();
+    if (!granted) return;
+    setInput('');
+    setListening(true);
+    ExpoSpeechRecognitionModule.start({ lang: 'en-US', interimResults: true });
   };
 
   return (
@@ -292,7 +338,7 @@ function CallScreen({ person, conversation, messages, setMessages, onEnd }) {
           </View>
         ))}
         {busy && (
-          <View style={s.miniThem}>
+          <View style={[s.mini, s.miniThem]}>
             <Text style={s.miniThemTx}>…</Text>
           </View>
         )}
@@ -301,15 +347,23 @@ function CallScreen({ person, conversation, messages, setMessages, onEnd }) {
         <TextInput
           style={s.callInputField}
           value={input}
-          placeholder={`Say something to ${person.name}…`}
-          placeholderTextColor="rgba(255,255,255,.3)"
+          placeholder={listening ? 'Listening…' : `Say something to ${person.name}…`}
+          placeholderTextColor={listening ? '#b8a0d4' : 'rgba(255,255,255,.3)'}
           onChangeText={setInput}
           onSubmitEditing={say}
           returnKeyType="send"
+          editable={!listening}
         />
-        <TouchableOpacity onPress={say} style={s.sendBtn}>
-          <Text style={s.sendBtnTx}>↑</Text>
-        </TouchableOpacity>
+        <Animated.View style={{ opacity: micPulse }}>
+          <TouchableOpacity onPress={toggleMic} style={[s.micBtn, listening && s.micBtnActive]}>
+            <Text style={{ fontSize: 18 }}>{listening ? '⏹' : '🎤'}</Text>
+          </TouchableOpacity>
+        </Animated.View>
+        {!listening && (
+          <TouchableOpacity onPress={say} style={s.sendBtn}>
+            <Text style={s.sendBtnTx}>↑</Text>
+          </TouchableOpacity>
+        )}
       </View>
       <TouchableOpacity onPress={() => onEnd(fmt(secs))} style={s.endBtn}>
         <Text style={{ fontSize: 24 }}>📵</Text>
@@ -502,6 +556,8 @@ const s = StyleSheet.create({
   callInputField: { flex: 1, backgroundColor: 'rgba(255,255,255,.06)',
     borderWidth: 1, borderColor: 'rgba(184,160,212,.25)', borderRadius: 12,
     paddingHorizontal: 14, paddingVertical: 11, color: '#f0e6d3', fontSize: 13 },
+  micBtn: { width: 42, height: 44, borderRadius: 12, backgroundColor: 'rgba(184,160,212,.2)', alignItems: 'center', justifyContent: 'center' },
+  micBtnActive: { backgroundColor: 'rgba(229,77,77,.3)' },
   sendBtn: { width: 42, borderRadius: 12, backgroundColor: '#b8a0d4', alignItems: 'center', justifyContent: 'center' },
   sendBtnTx: { color: '#0e0e1a', fontSize: 16, fontWeight: '600' },
   endBtn: { width: 62, height: 62, borderRadius: 31, backgroundColor: '#e54d4d',

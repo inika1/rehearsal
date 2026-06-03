@@ -10,7 +10,9 @@
       "supportsTablet": true,
       "bundleIdentifier": "com.anshigoyal.mobile",
       "infoPlist": {
-        "ITSAppUsesNonExemptEncryption": false
+        "ITSAppUsesNonExemptEncryption": false,
+        "NSMicrophoneUsageDescription": "Rehearsal uses your microphone to transcribe what you say during practice conversations.",
+        "NSSpeechRecognitionUsageDescription": "Rehearsal transcribes your speech so you can practise difficult conversations hands-free."
       }
     },
     "android": {
@@ -20,7 +22,8 @@
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
       },
-      "package": "com.anshigoyal.mobile"
+      "package": "com.anshigoyal.mobile",
+      "permissions": ["android.permission.RECORD_AUDIO"]
     },
     "web": {
       "favicon": "./assets/favicon.png"
