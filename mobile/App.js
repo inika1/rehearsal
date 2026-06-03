@@ -181,9 +181,9 @@ function ChooseScreen({ people, onPick, onAdd }) {
         <Text style={s.sub}>Who do you need to talk to?</Text>
       </View>
       <View style={s.people}>
-        {people.slice(0, 3).map((p, i) => (
+        {people.map((p, i) => (
           <TouchableOpacity key={p.id} onPress={() => onPick(p)} style={s.person}>
-            <View style={[s.pcircle, { backgroundColor: colorFor(i) + '2e' }]}>
+            <View style={[s.pcircle, { backgroundColor: colorFor(i) + '2e' }]}> 
               <Text style={[s.pcircleText, { color: colorFor(i) }]}>{p.name[0]}</Text>
             </View>
             <Text style={s.pname}>{p.name}</Text>
@@ -583,8 +583,8 @@ const s = StyleSheet.create({
   label: { fontSize: 11, color: 'rgba(255,255,255,.3)', paddingHorizontal: 24, marginTop: 16, marginBottom: 10, letterSpacing: 0.8 },
 
   // Choose
-  people: { flexDirection: 'row', justifyContent: 'space-around', paddingHorizontal: 24, paddingTop: 30, paddingBottom: 10 },
-  person: { alignItems: 'center', gap: 9 },
+  people: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-around', paddingHorizontal: 24, paddingTop: 30, paddingBottom: 10 },
+  person: { alignItems: 'center', gap: 9, marginBottom: 12 },
   pcircle: { width: 66, height: 66, borderRadius: 33, alignItems: 'center', justifyContent: 'center' },
   pcircleText: { fontSize: 24, fontWeight: '600' },
   pname: { fontSize: 12, color: 'rgba(255,255,255,.55)' },
