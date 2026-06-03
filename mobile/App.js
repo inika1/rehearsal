@@ -1,7 +1,6 @@
-import { StatusBar } from 'expo-status-bar';
 import { ExpoSpeechRecognitionModule, useSpeechRecognitionEvent } from 'expo-speech-recognition';
+import { StatusBar } from 'expo-status-bar';
 import { useEffect, useRef, useState } from 'react';
-import { assertiveColor, BLOCK_META, resolveInsights, STYLE_METERS } from '../shared/insightsView.js';
 import {
   Animated, Easing,
   KeyboardAvoidingView,
@@ -13,6 +12,7 @@ import {
   Text, TextInput, TouchableOpacity,
   View,
 } from 'react-native';
+import { assertiveColor, BLOCK_META, resolveInsights, STYLE_METERS } from './shared/insightsView.js';
 
 // When testing on a physical device, change this to your machine's local IP.
 // e.g. 'http://192.168.1.42:4000'
