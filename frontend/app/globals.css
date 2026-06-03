@@ -94,6 +94,9 @@ body {
 .icard-h .dot { width: 7px; height: 7px; border-radius: 50%; }
 .icard-t { font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: .04em; }
 .icard-b { font-size: 13px; color: rgba(255,255,255,.6); line-height: 1.5; }
+.icard-quote { font-size: 13px; color: #f0e6d3; font-style: italic; line-height: 1.5; margin-bottom: 8px; }
+.icard-instead { margin-top: 10px; padding-top: 10px; border-top: 1px solid rgba(255,255,255,.08); font-size: 13px; color: rgba(255,255,255,.75); line-height: 1.5; }
+.icard-instead-lbl { display: block; font-size: 10px; text-transform: uppercase; letter-spacing: .05em; color: #6bc48a; margin-bottom: 4px; font-weight: 600; }
 .viewtx { margin: 8px 24px 18px; padding: 13px; text-align: center; font-size: 13px; color: #c4a96e;
   background: rgba(196,169,110,.1); border: 1px solid rgba(196,169,110,.25); border-radius: 12px; cursor: pointer; }
 

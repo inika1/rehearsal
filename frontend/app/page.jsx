@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
+import { assertiveColor, BLOCK_META, resolveInsights, STYLE_METERS } from '../../shared/insightsView.js';
 
 const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
@@ -196,20 +197,54 @@ function Meter({ name, value, color }) {
 }
 
 function InsightsScreen({ conv, onHome, onTranscript }) {
+  const { styles, blocks } = resolveInsights(conv);
   return (
     <div className="scr">
       <div className="topbar"><div className="iconbtn" onClick={onHome}>⌂</div></div>
       <div className="conv-ttl">{conv.title}</div>
       <div className="conv-meta">with {conv.person_name || ''} · {conv.duration} · {conv.created_at?.slice(0, 10)}</div>
       <div className="ins-scroll">
-        <Meter name="Tension" value={conv.tension} color={tColor(conv.tension)} />
-        <Meter name="Emotional control" value={conv.emotion} color="#b8a0d4" />
+        {STYLE_METERS.map((m) => (
+          <Meter key={m.key} name={m.label} value={styles[m.key]} color={m.color} />
+        ))}
         <div className="label">Insights</div>
-        <InsightCard color="#e8a23d" title="You tend to…" body={conv.insight_tend} />
-        <InsightCard color="#b8a0d4" title="Try to…" body={conv.insight_try} />
-        <InsightCard color="#9b8cf0" title="You used…" body={conv.insight_used} />
+        {blocks.map((block, i) => (
+          <InsightBlock key={i} block={block} />
+        ))}
         <div className="viewtx" onClick={onTranscript}>View full transcript →</div>
       </div>
+    </div>
+  );
+}
+
+function InsightBlock({ block }) {
+  if (block.type === 'good') {
+    const meta = BLOCK_META.good;
+    return (
+      <div className="icard">
+        <div className="icard-h"><span className="dot" style={{ background: meta.color }} /><span className="icard-t" style={{ color: meta.color }}>{meta.title}</span></div>
+        <div className="icard-b">{block.message}</div>
+      </div>
+    );
+  }
+  if (block.type === 'legacy') {
+    return (
+      <>
+        {block.tend && <InsightCard color="#e8a23d" title="You tend to…" body={block.tend} />}
+        {block.try && <InsightCard color="#b8a0d4" title="Try to…" body={block.try} />}
+        {block.used && <InsightCard color="#9b8cf0" title="You used…" body={block.used} />}
+      </>
+    );
+  }
+  const meta = BLOCK_META[block.type] || { title: block.type, color: '#b8a0d4' };
+  return (
+    <div className="icard">
+      <div className="icard-h"><span className="dot" style={{ background: meta.color }} /><span className="icard-t" style={{ color: meta.color }}>{meta.title}</span></div>
+      <div className="icard-quote">“{block.quote}”</div>
+      {block.why && <div className="icard-b">{block.why}</div>}
+      {block.instead && (
+        <div className="icard-instead"><span className="icard-instead-lbl">Try instead</span> “{block.instead}”</div>
+      )}
     </div>
   );
 }
@@ -257,7 +292,7 @@ function HistoryScreen({ history, person, onOpen, onBack }) {
               <div className="htitle">{c.title}</div>
               <div className="hmeta">{c.person_name} · {c.duration} · {c.created_at?.slice(0, 10)}</div>
             </div>
-            <div className="htension" style={{ background: tColor(c.tension) + '22', color: tColor(c.tension) }}>{c.tension}%</div>
+            <div className="htension" style={{ background: assertiveColor(c.assertive ?? c.tension) + '22', color: assertiveColor(c.assertive ?? c.tension) }}>{c.assertive ?? c.tension}%</div>
           </div>
         ))}
       </div>

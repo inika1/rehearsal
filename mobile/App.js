@@ -1,6 +1,7 @@
 import { StatusBar } from 'expo-status-bar';
 import { ExpoSpeechRecognitionModule, useSpeechRecognitionEvent } from 'expo-speech-recognition';
 import { useEffect, useRef, useState } from 'react';
+import { assertiveColor, BLOCK_META, resolveInsights, STYLE_METERS } from '../shared/insightsView.js';
 import {
   Animated, Easing,
   KeyboardAvoidingView,
@@ -424,6 +425,7 @@ function AnimatedMeter({ name, value, color }) {
 }
 
 function InsightsScreen({ conv, onHome, onTranscript }) {
+  const { styles, blocks } = resolveInsights(conv);
   return (
     <View style={s.scr}>
       <View style={s.topbar}>
@@ -436,16 +438,58 @@ function InsightsScreen({ conv, onHome, onTranscript }) {
         with {conv.person_name || ''} · {conv.duration} · {conv.created_at?.slice(0, 10)}
       </Text>
       <ScrollView style={{ flex: 1 }}>
-        <AnimatedMeter name="Tension" value={conv.tension} color={tColor(conv.tension)} />
-        <AnimatedMeter name="Emotional control" value={conv.emotion} color="#b8a0d4" />
+        {STYLE_METERS.map((m) => (
+          <AnimatedMeter key={m.key} name={m.label} value={styles[m.key]} color={m.color} />
+        ))}
         <Text style={s.label}>INSIGHTS</Text>
-        <InsightCard color="#e8a23d" title="You tend to…" body={conv.insight_tend} />
-        <InsightCard color="#b8a0d4" title="Try to…" body={conv.insight_try} />
-        <InsightCard color="#9b8cf0" title="You used…" body={conv.insight_used} />
+        {blocks.map((block, i) => (
+          <InsightBlock key={i} block={block} />
+        ))}
         <TouchableOpacity onPress={onTranscript} style={s.viewTx}>
           <Text style={s.viewTxTx}>View full transcript →</Text>
         </TouchableOpacity>
       </ScrollView>
+    </View>
+  );
+}
+
+function InsightBlock({ block }) {
+  if (block.type === 'good') {
+    const meta = BLOCK_META.good;
+    return (
+      <View style={s.icard}>
+        <View style={s.icardH}>
+          <View style={[s.dot, { backgroundColor: meta.color }]} />
+          <Text style={[s.icardT, { color: meta.color }]}>{meta.title}</Text>
+        </View>
+        <Text style={s.icardB}>{block.message}</Text>
+      </View>
+    );
+  }
+  if (block.type === 'legacy') {
+    return (
+      <>
+        {block.tend ? <InsightCard color="#e8a23d" title="You tend to…" body={block.tend} /> : null}
+        {block.try ? <InsightCard color="#b8a0d4" title="Try to…" body={block.try} /> : null}
+        {block.used ? <InsightCard color="#9b8cf0" title="You used…" body={block.used} /> : null}
+      </>
+    );
+  }
+  const meta = BLOCK_META[block.type] || { title: block.type, color: '#b8a0d4' };
+  return (
+    <View style={s.icard}>
+      <View style={s.icardH}>
+        <View style={[s.dot, { backgroundColor: meta.color }]} />
+        <Text style={[s.icardT, { color: meta.color }]}>{meta.title}</Text>
+      </View>
+      <Text style={s.icardQuote}>“{block.quote}”</Text>
+      {block.why ? <Text style={s.icardB}>{block.why}</Text> : null}
+      {block.instead ? (
+        <View style={s.icardInstead}>
+          <Text style={s.icardInsteadLbl}>Try instead</Text>
+          <Text style={s.icardInsteadTx}>“{block.instead}”</Text>
+        </View>
+      ) : null}
     </View>
   );
 }
@@ -517,8 +561,10 @@ function HistoryScreen({ history, person, onOpen, onBack }) {
               <Text style={s.htitle}>{c.title}</Text>
               <Text style={s.hmeta}>{c.person_name} · {c.duration} · {c.created_at?.slice(0, 10)}</Text>
             </View>
-            <View style={[s.htension, { backgroundColor: tColor(c.tension) + '22' }]}>
-              <Text style={[s.htensionTx, { color: tColor(c.tension) }]}>{c.tension}%</Text>
+            <View style={[s.htension, { backgroundColor: assertiveColor(c.assertive ?? c.tension) + '22' }]}>
+              <Text style={[s.htensionTx, { color: assertiveColor(c.assertive ?? c.tension) }]}>
+                {c.assertive ?? c.tension}%
+              </Text>
             </View>
           </TouchableOpacity>
         ))}
@@ -606,6 +652,10 @@ const s = StyleSheet.create({
   dot: { width: 7, height: 7, borderRadius: 4 },
   icardT: { fontSize: 12, fontWeight: '600', textTransform: 'uppercase', letterSpacing: 0.5 },
   icardB: { fontSize: 13, color: 'rgba(255,255,255,.6)', lineHeight: 20 },
+  icardQuote: { fontSize: 13, color: '#f0e6d3', fontStyle: 'italic', lineHeight: 20, marginBottom: 8 },
+  icardInstead: { marginTop: 10, paddingTop: 10, borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,.08)' },
+  icardInsteadLbl: { fontSize: 10, textTransform: 'uppercase', letterSpacing: 0.5, color: '#6bc48a', fontWeight: '600', marginBottom: 4 },
+  icardInsteadTx: { fontSize: 13, color: 'rgba(255,255,255,.75)', lineHeight: 20 },
   viewTx: { marginHorizontal: 24, marginTop: 8, marginBottom: 18, padding: 13,
     backgroundColor: 'rgba(196,169,110,.1)', borderWidth: 1, borderColor: 'rgba(196,169,110,.25)', borderRadius: 12 },
   viewTxTx: { textAlign: 'center', fontSize: 13, color: '#c4a96e' },

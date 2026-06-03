@@ -18,6 +18,11 @@ create table if not exists conversations (
   insight_tend text,
   insight_try  text,
   insight_used text,
+  passive      integer,
+  aggressive   integer,
+  passive_aggressive integer,
+  assertive    integer,
+  insights     jsonb,
   created_at   timestamptz default now()
 );
 

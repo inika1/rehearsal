@@ -4,13 +4,13 @@ import { supabase } from '../lib/supabase.js';
 
 const router = Router();
 
-// GET /api/conversations?person_id=#   (only finished ones, i.e. tension set)
+// GET /api/conversations?person_id=#   (only finished ones, i.e. duration set)
 router.get('/', async (req, res) => {
   const { person_id } = req.query;
   let query = supabase
     .from('conversations')
     .select('*, people(name)')
-    .not('tension', 'is', null)
+    .not('duration', 'is', null)
     .order('created_at', { ascending: false });
   if (person_id) query = query.eq('person_id', person_id);
 
@@ -123,11 +123,16 @@ router.post('/:id/finish', async (req, res) => {
       .from('conversations')
       .update({
         duration: duration || '0:00',
-        tension: a.tension,
-        emotion: a.emotion,
-        insight_tend: a.insight_tend,
-        insight_try: a.insight_try,
-        insight_used: a.insight_used,
+        passive: a.styles.passive,
+        aggressive: a.styles.aggressive,
+        passive_aggressive: a.styles.passive_aggressive,
+        assertive: a.styles.assertive,
+        insights: a.blocks,
+        tension: a.styles.assertive,
+        emotion: null,
+        insight_tend: null,
+        insight_try: null,
+        insight_used: null,
       })
       .eq('id', conv.id)
       .select()

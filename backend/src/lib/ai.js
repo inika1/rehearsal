@@ -1,5 +1,20 @@
+import { DEFAULT_GOOD_MESSAGE, normalizeInsights } from './insights.js';
+
 const API_KEY = process.env.GEMINI_API_KEY;
 const MODEL = 'gemini-2.0-flash';
+
+const ANALYSIS_SCHEMA = `{
+  "passive": <0-100 int>,
+  "aggressive": <0-100 int>,
+  "passive_aggressive": <0-100 int>,
+  "assertive": <0-100 int>,
+  "critical": null | {"quote": "<exact words the user said>", "why": "<why this was critical>", "instead": "<better phrasing>"},
+  "contemptuous": null | {"quote": "...", "why": "...", "instead": "..."},
+  "defensive": null | {"quote": "...", "why": "...", "instead": "..."},
+  "stonewalling": null | {"quote": "...", "why": "...", "instead": "..."},
+  "conversation_good": <true if NONE of the four horsemen apply to the user, else false>,
+  "good_message": "<only when conversation_good is true: short encouraging message>"
+}`;
 
 async function callGemini(system, messages, maxTokens = 400) {
   const contents = messages.map((m) => ({
@@ -55,43 +70,87 @@ export async function replyAs(person, situation, history) {
   return callGemini(system, messages, 200);
 }
 
-export async function analyse(person, situation, transcript) {
-  if (!API_KEY) {
-    const myTurns = transcript.filter((m) => m.role === 'me');
-    const text = myTurns.map((m) => m.content.toLowerCase()).join(' ');
-    const hedges = (text.match(/\b(sorry|just|maybe|kind of|i guess|no rush|it's fine)\b/g) || [])
-      .length;
-    const tension = Math.min(90, 40 + hedges * 8);
-    const emotion = Math.max(20, 80 - hedges * 7);
-    return {
-      tension,
-      emotion,
-      insight_tend:
-        hedges > 1
-          ? 'soften your point with hedges, which can hide what you actually need.'
-          : 'state your point fairly directly.',
-      insight_try: 'name the concrete ask early and once, then stop talking.',
-      insight_used: `${hedges} softening phrase${hedges === 1 ? '' : 's'} (e.g. "sorry", "just", "it\'s fine").`,
-    };
+function mockAnalyse(transcript) {
+  const myTurns = transcript.filter((m) => m.role === 'me');
+  const text = myTurns.map((m) => m.content.toLowerCase()).join(' ');
+  const hedges = (text.match(/\b(sorry|just|maybe|kind of|i guess|no rush|it's fine)\b/g) || [])
+    .length;
+  const hostile = (text.match(/\b(always|never|you always|ridiculous|stupid)\b/g) || []).length;
+  const passive = Math.min(60, 20 + hedges * 10);
+  const aggressive = Math.min(50, hostile * 15);
+  const passive_aggressive = Math.min(40, hedges > 0 && hostile > 0 ? 25 : 10);
+  const assertive = Math.max(10, 100 - passive - aggressive - passive_aggressive);
+
+  const lastQuote = myTurns.length ? myTurns[myTurns.length - 1].content : '';
+  const hasIssue = hedges > 2 || hostile > 0;
+
+  if (!hasIssue || !lastQuote) {
+    return normalizeInsights({
+      passive: 15,
+      aggressive: 10,
+      passive_aggressive: 15,
+      assertive: 60,
+      conversation_good: true,
+      good_message: DEFAULT_GOOD_MESSAGE,
+    });
   }
 
+  const raw = {
+    passive,
+    aggressive,
+    passive_aggressive,
+    assertive,
+    conversation_good: false,
+  };
+  if (hostile > 0) {
+    raw.critical = {
+      quote: lastQuote,
+      why: 'Phrasing like “always” or “never” attacks the person instead of the problem.',
+      instead: 'Describe one specific moment and how it affected you.',
+    };
+  } else if (hedges > 2) {
+    raw.defensive = {
+      quote: lastQuote,
+      why: 'Heavy hedging can sound like you are backing away from what you need.',
+      instead: 'State one clear request without apologising for having it.',
+    };
+  }
+  return normalizeInsights(raw);
+}
+
+export async function analyse(person, situation, transcript) {
+  if (!API_KEY) return mockAnalyse(transcript);
+
   const system =
-    `You are a communication coach analysing a rehearsal transcript. ` +
-    `The user was practising: "${situation}" with ${person.name}. ` +
-    `Return ONLY a JSON object, no markdown, with exactly these keys: ` +
-    `{"tension": <0-100 int, how tense the exchange got>, ` +
-    `"emotion": <0-100 int, how well the user kept emotional control>, ` +
-    `"insight_tend": "<short: a habit the user tends to do>", ` +
-    `"insight_try": "<short: one concrete thing to try next time>", ` +
-    `"insight_used": "<short: a specific phrase/pattern they used>"}.`;
+    `You are a communication coach analysing a rehearsal transcript (Gottman + assertiveness). ` +
+    `The user practised: "${situation}" with ${person.name}. ` +
+    `Analyse ONLY what the user said (lines marked User). ` +
+    `Estimate how much of the user's communication was passive, aggressive, passive-aggressive, and assertive; ` +
+    `the four integers must sum to 100. ` +
+    `Detect if the user showed any of these toward the other person: critical (attacking character), ` +
+    `contemptuous (disrespect, sarcasm, disgust), defensive (deflecting blame, making excuses), ` +
+    `stonewalling (shutting down, one-word answers, refusing to engage). ` +
+    `For each detected pattern, quote their exact words, explain briefly why it fits, and suggest better phrasing. ` +
+    `If conversation_good is true, set critical, contemptuous, defensive, and stonewalling to null — ` +
+    `do not flag any horseman. ` +
+    `If any horseman is present, conversation_good must be false. ` +
+    `Return ONLY JSON, no markdown, matching this schema:\n${ANALYSIS_SCHEMA}`;
 
   const convoText = transcript
     .map((m) => `${m.role === 'me' ? 'User' : person.name}: ${m.content}`)
     .join('\n');
-  const raw = await callGemini(system, [{ role: 'user', content: convoText }], 400);
+  const raw = await callGemini(system, [{ role: 'user', content: convoText }], 900);
   try {
-    return JSON.parse(raw.replace(/```json|```/g, '').trim());
+    const parsed = JSON.parse(raw.replace(/```json|```/g, '').trim());
+    return normalizeInsights(parsed);
   } catch {
-    return { tension: 50, emotion: 50, insight_tend: '—', insight_try: '—', insight_used: '—' };
+    return normalizeInsights({
+      passive: 25,
+      aggressive: 25,
+      passive_aggressive: 25,
+      assertive: 25,
+      conversation_good: true,
+      good_message: DEFAULT_GOOD_MESSAGE,
+    });
   }
 }
