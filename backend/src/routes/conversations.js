@@ -33,7 +33,7 @@ router.post('/', async (req, res) => {
   if (error) return res.status(500).json({ error: error.message });
   
   // Auto-insert the first AI message (first pre-set question)
-  const firstQuestion = `Can you briefly describe the situation that's bothering you?`;
+  const firstQuestion = `Hey! What's up, what's going on?`;
   await supabase
     .from('messages')
     .insert({ conversation_id: data.id, role: 'them', content: firstQuestion });
