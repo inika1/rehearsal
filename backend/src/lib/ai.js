@@ -1,19 +1,26 @@
-const API_KEY = process.env.ANTHROPIC_API_KEY;
-const MODEL = 'claude-sonnet-4-20250514';
+const API_KEY = process.env.GEMINI_API_KEY;
+const MODEL = 'gemini-2.0-flash';
 
-async function callClaude(system, messages, maxTokens = 400) {
-  const res = await fetch('https://api.anthropic.com/v1/messages', {
-    method: 'POST',
-    headers: {
-      'content-type': 'application/json',
-      'x-api-key': API_KEY,
-      'anthropic-version': '2023-06-01',
-    },
-    body: JSON.stringify({ model: MODEL, max_tokens: maxTokens, system, messages }),
-  });
-  if (!res.ok) throw new Error('Claude API error: ' + res.status);
+async function callGemini(system, messages, maxTokens = 400) {
+  const contents = messages.map((m) => ({
+    role: m.role === 'user' ? 'user' : 'model',
+    parts: [{ text: m.content }],
+  }));
+  const res = await fetch(
+    `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent?key=${API_KEY}`,
+    {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        system_instruction: { parts: [{ text: system }] },
+        contents,
+        generationConfig: { maxOutputTokens: maxTokens },
+      }),
+    }
+  );
+  if (!res.ok) throw new Error('Gemini API error: ' + res.status);
   const data = await res.json();
-  return data.content.map((b) => (b.type === 'text' ? b.text : '')).join('');
+  return data.candidates[0].content.parts[0].text;
 }
 
 export async function replyAs(person, situation, history) {
@@ -45,7 +52,7 @@ export async function replyAs(person, situation, history) {
     content: m.content,
   }));
 
-  return callClaude(system, messages, 200);
+  return callGemini(system, messages, 200);
 }
 
 export async function analyse(person, situation, transcript) {
@@ -81,7 +88,7 @@ export async function analyse(person, situation, transcript) {
   const convoText = transcript
     .map((m) => `${m.role === 'me' ? 'User' : person.name}: ${m.content}`)
     .join('\n');
-  const raw = await callClaude(system, [{ role: 'user', content: convoText }], 400);
+  const raw = await callGemini(system, [{ role: 'user', content: convoText }], 400);
   try {
     return JSON.parse(raw.replace(/```json|```/g, '').trim());
   } catch {
