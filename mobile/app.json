@@ -23,7 +23,9 @@
         "monochromeImage": "./assets/android-icon-monochrome.png"
       },
       "package": "com.anshigoyal.mobile",
-      "permissions": ["android.permission.RECORD_AUDIO"]
+      "permissions": [
+        "android.permission.RECORD_AUDIO"
+      ]
     },
     "web": {
       "favicon": "./assets/favicon.png"
@@ -32,6 +34,9 @@
       "eas": {
         "projectId": "c1b4861c-8369-4c21-b870-ef021c50b7ea"
       }
-    }
+    },
+    "plugins": [
+      "expo-speech-recognition"
+    ]
   }
 }
