@@ -66,7 +66,7 @@ export default function App() {
 
   useEffect(() => { api.getPeople().then(setPeople); }, []);
 
-  const pickPerson = (p) => { setPerson(p); setScreen('describe'); };
+  const pickPerson = (p) => { setPerson(p); setSituation(''); setScreen('describe'); };
 
   const addPerson = async () => {
     if (!newName.trim()) return;
@@ -165,7 +165,7 @@ export default function App() {
       )}
       {screen === 'history' && (
         <HistoryScreen history={history} person={person}
-          onOpen={openConversation} onBack={() => setScreen('describe')} />
+          onOpen={openConversation} onBack={() => { setSituation(''); setScreen('describe'); }} />
       )}
     </SafeAreaView>
   );
