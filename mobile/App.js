@@ -267,6 +267,7 @@ function CallScreen({ person, conversation, messages, setMessages, onEnd }) {
   const busyRef = useRef(false);
   const activeRef = useRef(true);
   const sendRef = useRef(null);
+  const secsRef = useRef(0);
 
   const fmt = (n) =>
     `${String(Math.floor(n / 60)).padStart(2, '0')}:${String(n % 60).padStart(2, '0')}`;
@@ -323,10 +324,15 @@ function CallScreen({ person, conversation, messages, setMessages, onEnd }) {
     setInput('');
     const data = await api.sendTurn(conversation.id, text);
     const reply = data?.reply;
+    const done = data?.done;
     if (reply) setMessages((m) => [...m, { role: 'them', content: reply }]);
     await speakText(reply);
     busyRef.current = false;
     setBusy(false);
+    if (done) {
+      activeRef.current = false;
+      setTimeout(() => onEnd(fmt(secsRef.current)), 2000);
+    }
   };
   sendRef.current = sendText;
 
@@ -354,7 +360,7 @@ function CallScreen({ person, conversation, messages, setMessages, onEnd }) {
 
   // Timer + load initial messages and speak first coach message
   useEffect(() => {
-    timer.current = setInterval(() => setSecs((n) => n + 1), 1000);
+    timer.current = setInterval(() => setSecs((n) => { secsRef.current = n + 1; return n + 1; }), 1000);
     api.getConversation(conversation.id).then((full) => {
       const msgs = full.messages || [];
       setMessages(msgs);
