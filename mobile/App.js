@@ -1,4 +1,5 @@
 import { ExpoSpeechRecognitionModule, useSpeechRecognitionEvent } from 'expo-speech-recognition';
+import * as Speech from 'expo-speech';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect, useRef, useState } from 'react';
 import {
@@ -16,7 +17,6 @@ import {
   assertiveColor, BLOCK_META, displayHeadline, displayIssueSummary,
   resolveInsights, STYLE_METERS, STYLES_INTRO,
 } from './shared/insightsView.js';
-import { configureCoachSpeech, speakCoachText, stopCoachSpeech } from './shared/coachSpeech.js';
 import { StylePieChart } from './shared/StylePieChart.js';
 
 // When testing on a physical device, change this to your machine's local IP.
@@ -71,10 +71,7 @@ export default function App() {
   const [newName, setNewName] = useState('');
   const [newRel, setNewRel] = useState('');
 
-  useEffect(() => {
-    configureCoachSpeech(API);
-    api.getPeople().then(setPeople);
-  }, []);
+  useEffect(() => { api.getPeople().then(setPeople); }, []);
 
   const pickPerson = (p) => { setPerson(p); setSituation(''); setScreen('describe'); };
 
@@ -90,8 +87,9 @@ export default function App() {
   const startCall = async () => {
     const title = situation.split(' ').slice(0, 3).join(' ') || 'Untitled';
     const conv = await api.startConversation(person.id, title, situation);
-    setConversation(conv);
-    setMessages(conv.messages || []);
+    const fullConv = await api.getConversation(conv.id);
+    setConversation(fullConv);
+    setMessages(fullConv.messages || []);
     setScreen('call');
   };
 
@@ -278,6 +276,40 @@ function CallScreen({ person, conversation, messages, setMessages, onEnd }) {
   const fmt = (n) =>
     `${String(Math.floor(n / 60)).padStart(2, '0')}:${String(n % 60).padStart(2, '0')}`;
 
+  const speakText = (text) => new Promise((resolve) => {
+    if (!text) { resolve(); return; }
+    if (Platform.OS === 'web') {
+      if (!window.speechSynthesis) { resolve(); return; }
+      window.speechSynthesis.cancel();
+      const u = new SpeechSynthesisUtterance(text);
+      u.pitch = 1.05;
+      u.rate = 1.2;
+      const pickVoice = () => {
+        const voices = window.speechSynthesis.getVoices();
+        u.voice =
+          voices.find((v) => v.name === 'Samantha') ||
+          voices.find((v) => v.name.includes('Google UK English Female')) ||
+          voices.find((v) => v.lang === 'en-GB') ||
+          voices.find((v) => v.lang.startsWith('en')) ||
+          null;
+        u.onend = resolve;
+        u.onerror = resolve;
+        window.speechSynthesis.speak(u);
+      };
+      if (window.speechSynthesis.getVoices().length) pickVoice();
+      else window.speechSynthesis.addEventListener('voiceschanged', pickVoice, { once: true });
+    } else {
+      const timeout = setTimeout(resolve, 15000);
+      Speech.speak(text, {
+        pitch: 1.05,
+        rate: 1.2,
+        onDone: () => { clearTimeout(timeout); resolve(); },
+        onStopped: () => { clearTimeout(timeout); resolve(); },
+        onError: () => { clearTimeout(timeout); resolve(); },
+      });
+    }
+  });
+
   const startListening = async () => {
     if (busyRef.current || !activeRef.current) return;
     setInput('');
@@ -320,13 +352,10 @@ function CallScreen({ person, conversation, messages, setMessages, onEnd }) {
       const data = await api.sendTurn(conversation.id, text);
       reply = data?.reply || '';
       done = data?.done || false;
-    } catch (_) {
-      // network/server error — fall through to fallback
-    }
+    } catch (_) {}
     if (!reply) reply = "Go on — tell me more.";
-    const speakPromise = speakCoachText(reply, { audioBase64: data?.audio });
     setMessages((m) => [...m, { role: 'them', content: reply }]);
-    await speakPromise;
+    await speakText(reply);
     busyRef.current = false;
     setBusy(false);
     if (done) {
@@ -372,23 +401,24 @@ function CallScreen({ person, conversation, messages, setMessages, onEnd }) {
     }
   }, [busy, listening]);
 
-  // Timer + speak opening coach message (audio prefetched when conversation started)
+  // Timer + load initial messages and speak first coach message
   useEffect(() => {
     timer.current = setInterval(() => setSecs((n) => { secsRef.current = n + 1; return n + 1; }), 1000);
-    const first = messages.find((m) => m.role === 'them');
-    if (first) {
-      busyRef.current = true;
-      setBusy(true);
-      speakCoachText(first.content, { audioBase64: conversation?.opening_audio }).then(() => {
-        busyRef.current = false;
-        setBusy(false);
-      });
-    }
+    api.getConversation(conversation.id).then((full) => {
+      const msgs = full.messages || [];
+      setMessages(msgs);
+      const first = msgs.find((m) => m.role === 'them');
+      if (first) {
+        busyRef.current = true;
+        setBusy(true);
+        speakText(first.content).then(() => { busyRef.current = false; setBusy(false); });
+      }
+    });
     return () => {
       activeRef.current = false;
       clearInterval(timer.current);
       ExpoSpeechRecognitionModule.stop();
-      stopCoachSpeech();
+      Speech.stop();
     };
   }, []);
 
