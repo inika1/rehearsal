@@ -270,6 +270,7 @@ function CallScreen({ person, conversation, messages, setMessages, onEnd }) {
   const activeRef = useRef(true);
   const sendRef = useRef(null);
   const secsRef = useRef(0);
+  const silenceTimer = useRef(null);
 
   const fmt = (n) =>
     `${String(Math.floor(n / 60)).padStart(2, '0')}:${String(n % 60).padStart(2, '0')}`;
@@ -281,6 +282,7 @@ function CallScreen({ person, conversation, messages, setMessages, onEnd }) {
       window.speechSynthesis.cancel();
       const u = new SpeechSynthesisUtterance(text);
       u.pitch = 1.05;
+      u.rate = 1.2;
       const pickVoice = () => {
         const voices = window.speechSynthesis.getVoices();
         u.voice =
@@ -299,6 +301,7 @@ function CallScreen({ person, conversation, messages, setMessages, onEnd }) {
       Speech.speak(text, {
         voice: 'com.apple.voice.compact.en-US.Samantha',
         pitch: 1.05,
+        rate: 1.2,
         onDone: resolve,
         onStopped: resolve,
         onError: resolve,
@@ -320,9 +323,12 @@ function CallScreen({ person, conversation, messages, setMessages, onEnd }) {
       rec.onresult = (e) => {
         const text = Array.from(e.results).map((r) => r[0].transcript).join('');
         setInput(text);
-        if (e.results[e.results.length - 1].isFinal && text.trim()) sendRef.current(text.trim());
+        clearTimeout(silenceTimer.current);
+        silenceTimer.current = setTimeout(() => {
+          if (text.trim()) sendRef.current(text.trim());
+        }, 1500);
       };
-      rec.onend = () => setListening(false);
+      rec.onend = () => { clearTimeout(silenceTimer.current); setListening(false); };
       rec.onerror = () => setListening(false);
       webRecognition.current = rec;
       rec.start();
@@ -360,14 +366,17 @@ function CallScreen({ person, conversation, messages, setMessages, onEnd }) {
     if (Platform.OS === 'web') return;
     const text = event.results[0]?.transcript ?? '';
     setInput(text);
-    if (event.isFinal && text.trim()) sendText(text.trim());
+    clearTimeout(silenceTimer.current);
+    silenceTimer.current = setTimeout(() => {
+      if (text.trim()) sendText(text.trim());
+    }, 1500);
   });
 
   useSpeechRecognitionEvent('end', () => {
-    if (Platform.OS !== 'web') setListening(false);
+    if (Platform.OS !== 'web') { clearTimeout(silenceTimer.current); setListening(false); }
   });
   useSpeechRecognitionEvent('error', () => {
-    if (Platform.OS !== 'web') setListening(false);
+    if (Platform.OS !== 'web') { clearTimeout(silenceTimer.current); setListening(false); }
   });
 
   // Auto-start listening whenever idle

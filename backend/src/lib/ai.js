@@ -90,12 +90,14 @@ export async function replyAs(person, situation, history) {
   }));
 
   const raw = await callGroq(system, messages, 300);
-  try {
-    const parsed = JSON.parse(raw.replace(/```json|```/g, '').trim());
-    return { reply: String(parsed.reply || ''), done: Boolean(parsed.done) };
-  } catch {
-    return { reply: raw.trim(), done: false };
+  const jsonMatch = raw.match(/\{[\s\S]*\}/);
+  if (jsonMatch) {
+    try {
+      const parsed = JSON.parse(jsonMatch[0]);
+      return { reply: String(parsed.reply || ''), done: Boolean(parsed.done) };
+    } catch { /* fall through */ }
   }
+  return { reply: raw.replace(/\{[\s\S]*\}/, '').trim(), done: false };
 }
 
 function mockDidWellInstances(myTurns) {

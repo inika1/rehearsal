@@ -2,7 +2,7 @@
 // https://www.scottishconflictresolution.org.uk/learning-zone-communication-styles
 
 export const STYLES_INTRO =
-  'How your messages in this rehearsal blended four communication styles (percentages total 100%). Most people mix styles across a conversation.';
+  'How your messages in this rehearsal blended four communication styles. Most people mix styles across a conversation.';
 
 export const STYLE_METERS = [
   {
