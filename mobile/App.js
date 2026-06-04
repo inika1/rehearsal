@@ -366,17 +366,14 @@ function CallScreen({ person, conversation, messages, setMessages, onEnd }) {
     if (Platform.OS === 'web') return;
     const text = event.results[0]?.transcript ?? '';
     setInput(text);
-    clearTimeout(silenceTimer.current);
-    silenceTimer.current = setTimeout(() => {
-      if (text.trim()) sendText(text.trim());
-    }, 1500);
+    if (event.isFinal && text.trim()) sendRef.current(text.trim());
   });
 
   useSpeechRecognitionEvent('end', () => {
-    if (Platform.OS !== 'web') { clearTimeout(silenceTimer.current); setListening(false); }
+    if (Platform.OS !== 'web') setListening(false);
   });
   useSpeechRecognitionEvent('error', () => {
-    if (Platform.OS !== 'web') { clearTimeout(silenceTimer.current); setListening(false); }
+    if (Platform.OS !== 'web') setListening(false);
   });
 
   // Auto-start listening whenever idle
@@ -450,7 +447,7 @@ function CallScreen({ person, conversation, messages, setMessages, onEnd }) {
         </TouchableOpacity>
       </View>
       <TouchableOpacity onPress={() => onEnd(fmt(secs))} style={s.endBtn}>
-        <Text style={{ fontSize: 24 }}>📵</Text>
+        <Text style={s.endBtnTx}>📞</Text>
       </TouchableOpacity>
       <Text style={s.hint}>End call to see your insights</Text>
     </KeyboardAvoidingView>
@@ -679,9 +676,10 @@ const s = StyleSheet.create({
   micBtnActive: { backgroundColor: 'rgba(229,77,77,.3)' },
   sendBtn: { width: 42, borderRadius: 12, backgroundColor: '#b8a0d4', alignItems: 'center', justifyContent: 'center' },
   sendBtnTx: { color: '#0e0e1a', fontSize: 16, fontWeight: '600' },
-  endBtn: { width: 62, height: 62, borderRadius: 31, backgroundColor: '#e54d4d',
+  endBtn: { width: 80, height: 80, borderRadius: 40, backgroundColor: '#e54d4d',
     alignItems: 'center', justifyContent: 'center',
-    shadowColor: '#e54d4d', shadowOpacity: 0.35, shadowRadius: 12, shadowOffset: { width: 0, height: 6 } },
+    shadowColor: '#e54d4d', shadowOpacity: 0.4, shadowRadius: 14, shadowOffset: { width: 0, height: 6 } },
+  endBtnTx: { fontSize: 28, transform: [{ rotate: '135deg' }] },
   hint: { fontSize: 11, color: 'rgba(255,255,255,.3)', marginTop: 10 },
 
   // Insights
