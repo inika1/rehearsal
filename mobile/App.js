@@ -1,4 +1,5 @@
 import { ExpoSpeechRecognitionModule, useSpeechRecognitionEvent } from 'expo-speech-recognition';
+import * as Speech from 'expo-speech';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect, useRef, useState } from 'react';
 import {
@@ -260,32 +261,72 @@ function CallScreen({ person, conversation, messages, setMessages, onEnd }) {
   const [listening, setListening] = useState(false);
   const timer = useRef(null);
   const scrollRef = useRef(null);
-  const micPulse = useRef(new Animated.Value(1)).current;
-  const micAnim = useRef(null);
   const webRecognition = useRef(null);
+  const busyRef = useRef(false);
+  const activeRef = useRef(true);
+  const sendRef = useRef(null);
 
-  useEffect(() => {
-    timer.current = setInterval(() => setSecs((n) => n + 1), 1000);
-    return () => {
-      clearInterval(timer.current);
-      ExpoSpeechRecognitionModule.stop();
-    };
-  }, []);
+  const fmt = (n) =>
+    `${String(Math.floor(n / 60)).padStart(2, '0')}:${String(n % 60).padStart(2, '0')}`;
 
-  useEffect(() => {
-    if (listening) {
-      micAnim.current = Animated.loop(
-        Animated.sequence([
-          Animated.timing(micPulse, { toValue: 0.3, duration: 500, useNativeDriver: true }),
-          Animated.timing(micPulse, { toValue: 1, duration: 500, useNativeDriver: true }),
-        ])
-      );
-      micAnim.current.start();
+  const speakText = (text) => new Promise((resolve) => {
+    if (!text) { resolve(); return; }
+    if (Platform.OS === 'web') {
+      if (!window.speechSynthesis) { resolve(); return; }
+      window.speechSynthesis.cancel();
+      const u = new SpeechSynthesisUtterance(text);
+      u.onend = resolve;
+      u.onerror = resolve;
+      window.speechSynthesis.speak(u);
     } else {
-      micAnim.current?.stop();
-      Animated.timing(micPulse, { toValue: 1, duration: 150, useNativeDriver: true }).start();
+      Speech.speak(text, { onDone: resolve, onStopped: resolve, onError: resolve });
     }
-  }, [listening]);
+  });
+
+  const startListening = async () => {
+    if (busyRef.current || !activeRef.current) return;
+    setInput('');
+    if (Platform.OS === 'web') {
+      const w = /** @type {any} */ (window);
+      const SR = w.SpeechRecognition || w.webkitSpeechRecognition;
+      if (!SR) return;
+      const rec = new SR();
+      rec.lang = 'en-US';
+      rec.interimResults = true;
+      rec.onstart = () => setListening(true);
+      rec.onresult = (e) => {
+        const text = Array.from(e.results).map((r) => r[0].transcript).join('');
+        setInput(text);
+        if (e.results[e.results.length - 1].isFinal && text.trim()) sendRef.current(text.trim());
+      };
+      rec.onend = () => setListening(false);
+      rec.onerror = () => setListening(false);
+      webRecognition.current = rec;
+      rec.start();
+    } else {
+      const { granted } = await ExpoSpeechRecognitionModule.requestPermissionsAsync();
+      if (!granted) return;
+      setListening(true);
+      ExpoSpeechRecognitionModule.start({ lang: 'en-US', interimResults: true });
+    }
+  };
+
+  const sendText = async (text) => {
+    if (!text || busyRef.current) return;
+    busyRef.current = true;
+    setBusy(true);
+    if (Platform.OS === 'web') webRecognition.current?.abort();
+    else ExpoSpeechRecognitionModule.stop();
+    setMessages((m) => [...m, { role: 'me', content: text }]);
+    setInput('');
+    const data = await api.sendTurn(conversation.id, text);
+    const reply = data?.reply;
+    if (reply) setMessages((m) => [...m, { role: 'them', content: reply }]);
+    await speakText(reply);
+    busyRef.current = false;
+    setBusy(false);
+  };
+  sendRef.current = sendText;
 
   useSpeechRecognitionEvent('result', (event) => {
     if (Platform.OS === 'web') return;
@@ -294,58 +335,41 @@ function CallScreen({ person, conversation, messages, setMessages, onEnd }) {
     if (event.isFinal && text.trim()) sendText(text.trim());
   });
 
-  useSpeechRecognitionEvent('end', () => { if (Platform.OS !== 'web') setListening(false); });
-  useSpeechRecognitionEvent('error', () => { if (Platform.OS !== 'web') setListening(false); });
+  useSpeechRecognitionEvent('end', () => {
+    if (Platform.OS !== 'web') setListening(false);
+  });
+  useSpeechRecognitionEvent('error', () => {
+    if (Platform.OS !== 'web') setListening(false);
+  });
 
-  const fmt = (n) =>
-    `${String(Math.floor(n / 60)).padStart(2, '0')}:${String(n % 60).padStart(2, '0')}`;
-
-  const sendText = async (text) => {
-    if (!text || busy) return;
-    setMessages((m) => [...m, { role: 'me', content: text }]);
-    setInput('');
-    setBusy(true);
-    const { reply } = await api.sendTurn(conversation.id, text);
-    setMessages((m) => [...m, { role: 'them', content: reply }]);
-    setBusy(false);
-  };
-
-  const say = () => sendText(input.trim());
-
-  const toggleMic = async () => {
-    if (Platform.OS === 'web') {
-      if (listening) {
-        webRecognition.current?.stop();
-        return;
-      }
-      const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-      if (!SR) return;
-      const rec = new SR();
-      rec.lang = 'en-US';
-      rec.interimResults = true;
-      rec.onresult = (e) => {
-        const text = Array.from(e.results).map((r) => r[0].transcript).join('');
-        setInput(text);
-        if (e.results[e.results.length - 1].isFinal && text.trim()) sendText(text.trim());
-      };
-      rec.onend = () => setListening(false);
-      rec.onerror = () => setListening(false);
-      webRecognition.current = rec;
-      setInput('');
-      setListening(true);
-      rec.start();
-    } else {
-      if (listening) {
-        ExpoSpeechRecognitionModule.stop();
-        return;
-      }
-      const { granted } = await ExpoSpeechRecognitionModule.requestPermissionsAsync();
-      if (!granted) return;
-      setInput('');
-      setListening(true);
-      ExpoSpeechRecognitionModule.start({ lang: 'en-US', interimResults: true });
+  // Auto-start listening whenever idle
+  useEffect(() => {
+    if (!busy && !listening && activeRef.current) {
+      const t = setTimeout(startListening, 300);
+      return () => clearTimeout(t);
     }
-  };
+  }, [busy, listening]);
+
+  // Timer + load initial messages and speak first coach message
+  useEffect(() => {
+    timer.current = setInterval(() => setSecs((n) => n + 1), 1000);
+    api.getConversation(conversation.id).then((full) => {
+      const msgs = full.messages || [];
+      setMessages(msgs);
+      const first = msgs.find((m) => m.role === 'them');
+      if (first) {
+        busyRef.current = true;
+        setBusy(true);
+        speakText(first.content).then(() => { busyRef.current = false; setBusy(false); });
+      }
+    });
+    return () => {
+      activeRef.current = false;
+      clearInterval(timer.current);
+      ExpoSpeechRecognitionModule.stop();
+      Speech.stop();
+    };
+  }, []);
 
   return (
     <KeyboardAvoidingView style={s.callWrap} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
@@ -377,23 +401,16 @@ function CallScreen({ person, conversation, messages, setMessages, onEnd }) {
         <TextInput
           style={s.callInputField}
           value={input}
-          placeholder={listening ? 'Listening…' : `Say something to ${person.name}…`}
+          placeholder={listening ? 'Listening…' : busy ? 'Coach is replying…' : 'Say something…'}
           placeholderTextColor={listening ? '#b8a0d4' : 'rgba(255,255,255,.3)'}
           onChangeText={setInput}
-          onSubmitEditing={say}
+          onSubmitEditing={() => sendText(input.trim())}
           returnKeyType="send"
-          editable={!listening}
+          editable={!listening && !busy}
         />
-        <Animated.View style={{ opacity: micPulse }}>
-          <TouchableOpacity onPress={toggleMic} style={[s.micBtn, listening && s.micBtnActive]}>
-            <Text style={{ fontSize: 18 }}>{listening ? '⏹' : '🎤'}</Text>
-          </TouchableOpacity>
-        </Animated.View>
-        {!listening && (
-          <TouchableOpacity onPress={say} style={s.sendBtn}>
-            <Text style={s.sendBtnTx}>↑</Text>
-          </TouchableOpacity>
-        )}
+        <TouchableOpacity onPress={() => sendText(input.trim())} style={s.sendBtn}>
+          <Text style={s.sendBtnTx}>↑</Text>
+        </TouchableOpacity>
       </View>
       <TouchableOpacity onPress={() => onEnd(fmt(secs))} style={s.endBtn}>
         <Text style={{ fontSize: 24 }}>📵</Text>

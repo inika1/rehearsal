@@ -22,7 +22,6 @@ const api = {
 
 const AVATAR_COLORS = ['#c4a96e', '#b8a0d4', '#9b8cf0', '#e8a23d', '#3ec46a'];
 const colorFor = (i) => AVATAR_COLORS[i % AVATAR_COLORS.length];
-const tColor = (t) => (t >= 65 ? '#e54d4d' : t >= 45 ? '#e8a23d' : '#3ec46a');
 
 export default function App() {
   const [screen, setScreen] = useState('choose');
@@ -140,32 +139,106 @@ function CallScreen({ person, conversation, messages, setMessages, onEnd }) {
   const [secs, setSecs] = useState(0);
   const [input, setInput] = useState('');
   const [busy, setBusy] = useState(false);
+  const [listening, setListening] = useState(false);
   const timer = useRef(null);
+  const recog = useRef(null);
+  const pendingText = useRef('');
+  const busyRef = useRef(false);
+  const activeRef = useRef(true);
+  const sendRef = useRef(null);
 
+  const fmt = (s) => `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`;
+
+  const speak = (text) => new Promise((resolve) => {
+    if (!window.speechSynthesis || !text) { resolve(); return; }
+    window.speechSynthesis.cancel();
+    const u = new SpeechSynthesisUtterance(text);
+    u.onend = resolve;
+    u.onerror = resolve;
+    window.speechSynthesis.speak(u);
+  });
+
+  const send = async (text) => {
+    if (!text.trim() || busyRef.current) return;
+    busyRef.current = true;
+    setBusy(true);
+    recog.current?.abort();
+    setMessages((m) => [...m, { role: 'me', content: text }]);
+    setInput('');
+    const data = await api.sendTurn(conversation.id, text);
+    const reply = data?.reply;
+    if (reply) setMessages((m) => [...m, { role: 'them', content: reply }]);
+    await speak(reply);
+    busyRef.current = false;
+    setBusy(false);
+  };
+  sendRef.current = send;
+
+  // Load initial messages from DB and speak the first coach message
+  useEffect(() => {
+    api.getConversation(conversation.id).then((full) => {
+      const msgs = full.messages || [];
+      setMessages(msgs);
+      const first = msgs.find((m) => m.role === 'them');
+      if (first) {
+        busyRef.current = true;
+        setBusy(true);
+        speak(first.content).then(() => { busyRef.current = false; setBusy(false); });
+      }
+    });
+  }, []);
+
+  // Timer
   useEffect(() => {
     timer.current = setInterval(() => setSecs((s) => s + 1), 1000);
     return () => clearInterval(timer.current);
   }, []);
 
-  const fmt = (s) => `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`;
+  // Speech recognition: auto-start whenever not busy and not already listening
+  useEffect(() => {
+    const w = /** @type {any} */ (window);
+    const SR = w.SpeechRecognition || w.webkitSpeechRecognition;
+    if (!SR) return;
+    const r = new SR();
+    r.continuous = false;
+    r.interimResults = true;
+    r.lang = 'en-US';
+    r.onstart = () => setListening(true);
+    r.onresult = (e) => {
+      let text = '';
+      for (let i = 0; i < e.results.length; i++) text += e.results[i][0].transcript;
+      setInput(text);
+      if (e.results[e.results.length - 1].isFinal) pendingText.current = text;
+    };
+    r.onend = () => {
+      setListening(false);
+      const text = pendingText.current.trim();
+      pendingText.current = '';
+      setInput('');
+      if (text) sendRef.current(text);
+    };
+    r.onerror = () => setListening(false);
+    recog.current = r;
+    return () => { activeRef.current = false; r.abort(); };
+  }, []);
 
-  const say = async () => {
-    if (!input.trim() || busy) return;
-    const mine = { role: 'me', content: input };
-    setMessages((m) => [...m, mine]);
-    setInput('');
-    setBusy(true);
-    const { reply } = await api.sendTurn(conversation.id, mine.content);
-    setMessages((m) => [...m, { role: 'them', content: reply }]);
-    setBusy(false);
-  };
+  useEffect(() => {
+    if (!busy && !listening && activeRef.current) {
+      const t = setTimeout(() => {
+        if (!busyRef.current && activeRef.current) try { recog.current?.start(); } catch {}
+      }, 300);
+      return () => clearTimeout(t);
+    }
+  }, [busy, listening]);
 
   return (
     <div className="call-wrap">
       <div className="call-name">{person.name}</div>
       <div className="timer">{fmt(secs)}</div>
       <div className="call-avatar">{person.name[0]}</div>
-      <div className="wave">{Array.from({ length: 7 }).map((_, i) => <span key={i} style={{ animationDelay: `${i * 0.12}s` }} />)}</div>
+      <div className="wave" style={{ opacity: listening ? 1 : busy ? 0.4 : 0.15 }}>
+        {Array.from({ length: 7 }).map((_, i) => <span key={i} style={{ animationDelay: `${i * 0.12}s` }} />)}
+      </div>
       <div className="mini-transcript">
         {messages.slice(-3).map((m, i) => (
           <div key={i} className={`mini ${m.role}`}>{m.content}</div>
@@ -173,11 +246,18 @@ function CallScreen({ person, conversation, messages, setMessages, onEnd }) {
         {busy && <div className="mini them">…</div>}
       </div>
       <div className="call-input">
-        <input value={input} placeholder={`Say something to ${person.name}…`}
-          onChange={(e) => setInput(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && say()} />
-        <button onClick={say}>↑</button>
+        <input value={input}
+          placeholder={listening ? 'Listening…' : busy ? 'Coach is replying…' : 'Type or say something…'}
+          onChange={(e) => setInput(e.target.value)}
+          onKeyDown={(e) => e.key === 'Enter' && !busy && send(input)} />
+        <button onClick={() => send(input)}>↑</button>
       </div>
-      <div className="endbtn" onClick={() => onEnd(fmt(secs))}>
+      <div className="endbtn" onClick={() => {
+        activeRef.current = false;
+        recog.current?.abort();
+        window.speechSynthesis?.cancel();
+        onEnd(fmt(secs));
+      }}>
         <svg width="26" height="26" viewBox="0 0 24 24" fill="none"><path d="M6.5 3h3l1.5 4.5L9 9.5a12 12 0 005.5 5.5l2-2 4.5 1.5v3a2 2 0 01-2 2A16 16 0 014 5a2 2 0 012-2z" stroke="#fff" strokeWidth="2" strokeLinejoin="round" transform="rotate(135 12 12)" /></svg>
       </div>
       <div className="hint">End call to see your insights</div>
