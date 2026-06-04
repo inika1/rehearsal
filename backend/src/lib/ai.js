@@ -94,10 +94,12 @@ export async function replyAs(person, situation, history) {
   if (jsonMatch) {
     try {
       const parsed = JSON.parse(jsonMatch[0]);
-      return { reply: String(parsed.reply || ''), done: Boolean(parsed.done) };
+      const reply = String(parsed.reply || '').trim();
+      if (reply) return { reply, done: Boolean(parsed.done) };
     } catch { /* fall through */ }
   }
-  return { reply: raw.replace(/\{[\s\S]*\}/, '').trim(), done: false };
+  const fallback = raw.replace(/\{[\s\S]*\}/, '').trim();
+  return { reply: fallback || "Tell me more — what's on your mind?", done: false };
 }
 
 function mockDidWellInstances(myTurns) {

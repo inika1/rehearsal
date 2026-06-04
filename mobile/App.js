@@ -271,6 +271,7 @@ function CallScreen({ person, conversation, messages, setMessages, onEnd }) {
   const sendRef = useRef(null);
   const secsRef = useRef(0);
   const silenceTimer = useRef(null);
+  const pendingTextRef = useRef('');
 
   const fmt = (n) =>
     `${String(Math.floor(n / 60)).padStart(2, '0')}:${String(n % 60).padStart(2, '0')}`;
@@ -345,10 +346,17 @@ function CallScreen({ person, conversation, messages, setMessages, onEnd }) {
     else ExpoSpeechRecognitionModule.stop();
     setMessages((m) => [...m, { role: 'me', content: text }]);
     setInput('');
-    const data = await api.sendTurn(conversation.id, text);
-    const reply = data?.reply;
-    const done = data?.done;
-    if (reply) setMessages((m) => [...m, { role: 'them', content: reply }]);
+    let reply = '';
+    let done = false;
+    try {
+      const data = await api.sendTurn(conversation.id, text);
+      reply = data?.reply || '';
+      done = data?.done || false;
+    } catch (_) {
+      // network/server error — fall through to fallback
+    }
+    if (!reply) reply = "Go on — tell me more.";
+    setMessages((m) => [...m, { role: 'them', content: reply }]);
     await speakText(reply);
     busyRef.current = false;
     setBusy(false);
@@ -363,14 +371,28 @@ function CallScreen({ person, conversation, messages, setMessages, onEnd }) {
     if (Platform.OS === 'web') return;
     const text = event.results[0]?.transcript ?? '';
     setInput(text);
-    if (event.isFinal && text.trim()) sendRef.current(text.trim());
+    pendingTextRef.current = text;
+    if (event.isFinal && text.trim()) {
+      pendingTextRef.current = '';
+      sendRef.current(text.trim());
+    }
   });
 
   useSpeechRecognitionEvent('end', () => {
-    if (Platform.OS !== 'web') setListening(false);
+    if (Platform.OS !== 'web') {
+      setListening(false);
+      const pending = pendingTextRef.current.trim();
+      if (pending) {
+        pendingTextRef.current = '';
+        sendRef.current(pending);
+      }
+    }
   });
   useSpeechRecognitionEvent('error', () => {
-    if (Platform.OS !== 'web') setListening(false);
+    if (Platform.OS !== 'web') {
+      pendingTextRef.current = '';
+      setListening(false);
+    }
   });
 
   // Auto-start listening whenever idle
