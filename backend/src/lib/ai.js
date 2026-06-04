@@ -1,4 +1,4 @@
-import { DEFAULT_GOOD_MESSAGE, normalizeInsights } from './insights.js';
+import { normalizeInsights } from './insights.js';
 
 const API_KEY = process.env.GROQ_API_KEY;
 const MODEL = 'llama-3.3-70b-versatile';
@@ -19,12 +19,23 @@ const ANALYSIS_SCHEMA = `{
   "aggressive": <0-100 int>,
   "passive_aggressive": <0-100 int>,
   "assertive": <0-100 int>,
+  "style_notes": {
+    "passive": {"instances": [{"quote": "<exact user words>", "why": "<why this shows passive>"}]},
+    "aggressive": {"instances": [{"quote": "...", "why": "..."}]},
+    "passive_aggressive": {"instances": [{"quote": "...", "why": "..."}]},
+    "assertive": {"instances": [{"quote": "...", "why": "..."}]}
+  },
   "critical": null | {"quote": "<exact words the user said>", "why": "<why this was critical>", "instead": "<better phrasing>"},
   "contemptuous": null | {"quote": "...", "why": "...", "instead": "..."},
   "defensive": null | {"quote": "...", "why": "...", "instead": "..."},
   "stonewalling": null | {"quote": "...", "why": "...", "instead": "..."},
   "conversation_good": <true if NONE of the four horsemen apply to the user, else false>,
-  "good_message": "<only when conversation_good is true: short encouraging message>"
+  "did_well": {
+    "instances": [
+      {"quote": "<exact words the user said>", "why": "<why this moment was positive>"},
+      {"quote": "...", "why": "..."}
+    ]
+  }
 }`;
 
 async function callGroq(system, messages, maxTokens = 400) {
@@ -69,6 +80,37 @@ export async function replyAs(person, situation, history) {
   return callGroq(system, messages, 200);
 }
 
+function mockDidWellInstances(myTurns) {
+  const nice = myTurns.filter(
+    (m) =>
+      m.content.length > 12 &&
+      (/i feel|i need|i'd like|i would like|thank|appreciate|understand|help me|when you/i.test(
+        m.content
+      ) ||
+        (!/\b(always|never|stupid|ridiculous|hate)\b/i.test(m.content) && m.content.length > 40))
+  );
+  const picks = (nice.length ? nice : myTurns).slice(0, 3);
+  if (!picks.length) {
+    return {
+      instances: [
+        {
+          quote: 'Your effort in this rehearsal',
+          why: 'You showed up and practised instead of avoiding the conversation.',
+        },
+      ],
+    };
+  }
+  return {
+    instances: picks.map((m, i) => ({
+      quote: m.content,
+      why:
+        i === 0
+          ? 'You named feelings or needs in a constructive way.'
+          : 'Another moment where you stayed clear and respectful.',
+    })),
+  };
+}
+
 function mockAnalyse(transcript) {
   const myTurns = transcript.filter((m) => m.role === 'me');
   const text = myTurns.map((m) => m.content.toLowerCase()).join(' ');
@@ -84,14 +126,17 @@ function mockAnalyse(transcript) {
   const hasIssue = hedges > 2 || hostile > 0;
 
   if (!hasIssue || !lastQuote) {
-    return normalizeInsights({
-      passive: 15,
-      aggressive: 10,
-      passive_aggressive: 15,
-      assertive: 60,
-      conversation_good: true,
-      good_message: DEFAULT_GOOD_MESSAGE,
-    });
+    return normalizeInsights(
+      {
+        passive: 15,
+        aggressive: 10,
+        passive_aggressive: 15,
+        assertive: 60,
+        conversation_good: true,
+        did_well: mockDidWellInstances(myTurns),
+      },
+      transcript
+    );
   }
 
   const raw = {
@@ -101,6 +146,7 @@ function mockAnalyse(transcript) {
     assertive,
     conversation_good: false,
   };
+  raw.did_well = mockDidWellInstances(myTurns);
   if (hostile > 0) {
     raw.critical = {
       quote: lastQuote,
@@ -114,7 +160,7 @@ function mockAnalyse(transcript) {
       instead: 'State one clear request without apologising for having it.',
     };
   }
-  return normalizeInsights(raw);
+  return normalizeInsights(raw, transcript);
 }
 
 export async function analyse(person, situation, transcript) {
@@ -124,32 +170,43 @@ export async function analyse(person, situation, transcript) {
     `You are a communication coach analysing a rehearsal transcript (Gottman + assertiveness). ` +
     `The user practised: "${situation}" with ${person.name}. ` +
     `Analyse ONLY what the user said (lines marked User). ` +
-    `Estimate how much of the user's communication was passive, aggressive, passive-aggressive, and assertive; ` +
-    `the four integers must sum to 100. ` +
+    `Estimate how much of the user's communication was passive (avoids confrontation, accommodates others), ` +
+    `aggressive (forceful, win-focused), passive-aggressive (indirect hostility, sarcasm, avoidance), ` +
+    `and assertive (clear, respectful, balances own needs with listening); the four integers must sum to 100. ` +
+    `For style_notes, each style needs 1-2 instances: exact user quotes plus why that line shows that style (or why the score is low—cite a contrasting line). Never use vague summaries without a quote. ` +
     `Detect if the user showed any of these toward the other person: critical (attacking character), ` +
     `contemptuous (disrespect, sarcasm, disgust), defensive (deflecting blame, making excuses), ` +
     `stonewalling (shutting down, one-word answers, refusing to engage). ` +
     `For each detected pattern, quote their exact words, explain briefly why it fits, and suggest better phrasing. ` +
-    `If conversation_good is true, set critical, contemptuous, defensive, and stonewalling to null — ` +
-    `do not flag any horseman. ` +
+    `Always include did_well with 2-3 instances when possible (at least 1): each must quote exact user words from the transcript and why that moment was positive. ` +
+    `If NONE of the four horsemen apply: set conversation_good true and all horsemen null. ` +
+    `If exactly ONE horseman clearly applies, return only that horseman (plus did_well is added separately). ` +
+    `If TWO or more horsemen apply, return each of them. ` +
+    `If ONE horseman applies but a second is borderline, include both horseman blocks. ` +
     `If any horseman is present, conversation_good must be false. ` +
     `Return ONLY JSON, no markdown, matching this schema:\n${ANALYSIS_SCHEMA}`;
 
   const convoText = transcript
     .map((m) => `${m.role === 'me' ? 'User' : person.name}: ${m.content}`)
     .join('\n');
-  const raw = await callGroq(system, [{ role: 'user', content: convoText }], 900);
+  const raw = await callGroq(system, [{ role: 'user', content: convoText }], 1400);
   try {
     const parsed = JSON.parse(raw.replace(/```json|```/g, '').trim());
-    return normalizeInsights(parsed);
+    return normalizeInsights(parsed, transcript);
   } catch {
     return normalizeInsights({
       passive: 25,
       aggressive: 25,
       passive_aggressive: 25,
       assertive: 25,
-      conversation_good: true,
-      good_message: DEFAULT_GOOD_MESSAGE,
-    });
+      did_well: {
+        instances: [
+          {
+            quote: 'Your messages in this rehearsal',
+            why: 'You stayed constructive overall and are building readiness for the real conversation.',
+          },
+        ],
+      },
+    }, transcript);
   }
 }

@@ -1,7 +1,9 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { assertiveColor, BLOCK_META, resolveInsights, STYLE_METERS } from '../../shared/insightsView.js';
+import {
+  assertiveColor, BLOCK_META, resolveInsights, STYLE_METERS, STYLES_INTRO,
+} from '../../shared/insightsView.js';
 
 const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
@@ -265,27 +267,51 @@ function CallScreen({ person, conversation, messages, setMessages, onEnd }) {
   );
 }
 
-function Meter({ name, value, color }) {
+function StyleMeter({ meter, value, note }) {
   const [w, setW] = useState(0);
   useEffect(() => { const t = setTimeout(() => setW(value), 60); return () => clearTimeout(t); }, [value]);
   return (
-    <div className="meter">
-      <div className="meter-top"><span>{name}</span><span style={{ color, fontWeight: 600 }}>{value}%</span></div>
-      <div className="track"><div className="fill" style={{ width: w + '%', background: color }} /></div>
+    <div className="meter style-meter">
+      <div className="meter-top">
+        <span>{meter.label}</span>
+        <span style={{ color: meter.color, fontWeight: 600 }}>{value}%</span>
+      </div>
+      <p className="style-desc">{meter.description}</p>
+      <div className="track"><div className="fill" style={{ width: w + '%', background: meter.color }} /></div>
+      {(note?.instances || []).map((inst, i) => (
+        <div key={i} className={i > 0 ? 'style-instance' : 'style-instance-first'}>
+          <div className="style-example">From your call: “{inst.quote}”</div>
+          {inst.why && <div className="style-reason">{inst.why}</div>}
+        </div>
+      ))}
     </div>
   );
 }
 
 function InsightsScreen({ conv, onHome, onTranscript }) {
-  const { styles, blocks } = resolveInsights(conv);
+  const { styles, blocks, styleNotes } = resolveInsights(conv);
   return (
     <div className="scr">
       <div className="topbar"><div className="iconbtn" onClick={onHome}>⌂</div></div>
       <div className="conv-ttl">{conv.title}</div>
       <div className="conv-meta">with {conv.person_name || ''} · {conv.duration} · {conv.created_at?.slice(0, 10)}</div>
       <div className="ins-scroll">
+        <p className="styles-intro">{STYLES_INTRO}</p>
+        <a
+          className="styles-ref"
+          href="https://www.scottishconflictresolution.org.uk/learning-zone-communication-styles"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          Communication styles guide (SCCR) ↗
+        </a>
         {STYLE_METERS.map((m) => (
-          <Meter key={m.key} name={m.label} value={styles[m.key]} color={m.color} />
+          <StyleMeter
+            key={m.key}
+            meter={m}
+            value={styles[m.key]}
+            note={styleNotes[m.key]}
+          />
         ))}
         <div className="label">Insights</div>
         {blocks.map((block, i) => (
@@ -297,16 +323,28 @@ function InsightsScreen({ conv, onHome, onTranscript }) {
   );
 }
 
-function InsightBlock({ block }) {
-  if (block.type === 'good') {
-    const meta = BLOCK_META.good;
-    return (
-      <div className="icard">
-        <div className="icard-h"><span className="dot" style={{ background: meta.color }} /><span className="icard-t" style={{ color: meta.color }}>{meta.title}</span></div>
-        <div className="icard-b">{block.message}</div>
+function DidWellBlock({ block }) {
+  const meta = BLOCK_META.did_well;
+  const instances =
+    block.instances ||
+    (block.quote ? [{ quote: block.quote, why: block.why }] : []);
+  return (
+    <div className="icard">
+      <div className="icard-h">
+        <span className="dot" style={{ background: meta.color }} />
+        <span className="icard-t" style={{ color: meta.color }}>{meta.title}</span>
       </div>
-    );
-  }
+      {instances.map((inst, i) => (
+        <div key={i} className={i > 0 ? 'did-well-item' : undefined}>
+          <div className="icard-quote">“{inst.quote}”</div>
+          {inst.why && <div className="icard-b">{inst.why}</div>}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function InsightBlock({ block }) {
   if (block.type === 'legacy') {
     return (
       <>
@@ -315,6 +353,9 @@ function InsightBlock({ block }) {
         {block.used && <InsightCard color="#9b8cf0" title="You used…" body={block.used} />}
       </>
     );
+  }
+  if (block.type === 'did_well' || block.type === 'went_well') {
+    return <DidWellBlock block={block} />;
   }
   const meta = BLOCK_META[block.type] || { title: block.type, color: '#b8a0d4' };
   return (

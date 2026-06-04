@@ -84,6 +84,16 @@ body {
 .conv-meta { font-size: 12px; color: rgba(255,255,255,.35); padding: 0 24px 14px; }
 .ins-scroll { flex: 1; overflow-y: auto; padding-bottom: 16px; }
 .meter { margin: 0 24px 16px; }
+.style-meter { margin-bottom: 20px; padding-bottom: 4px; border-bottom: 1px solid rgba(255,255,255,.06); }
+.style-meter:last-of-type { border-bottom: none; }
+.styles-intro { margin: 0 24px 8px; font-size: 12px; line-height: 1.5; color: rgba(255,255,255,.45); }
+.styles-ref { display: block; margin: 0 24px 16px; font-size: 11px; color: #9b8cf0; text-decoration: none; }
+.styles-ref:hover { text-decoration: underline; }
+.style-desc { margin: 0 0 8px; font-size: 11px; line-height: 1.45; color: rgba(255,255,255,.4); }
+.style-instance-first { margin-top: 8px; }
+.style-instance { margin-top: 10px; padding-top: 10px; border-top: 1px solid rgba(255,255,255,.06); }
+.style-example { font-size: 12px; color: #f0e6d3; font-style: italic; line-height: 1.45; }
+.style-reason { margin-top: 4px; font-size: 12px; color: rgba(255,255,255,.55); line-height: 1.45; }
 .meter-top { display: flex; justify-content: space-between; font-size: 13px;
   color: rgba(255,255,255,.6); margin-bottom: 6px; }
 .track { height: 8px; background: rgba(255,255,255,.08); border-radius: 6px; overflow: hidden; }
@@ -97,6 +107,7 @@ body {
 .icard-quote { font-size: 13px; color: #f0e6d3; font-style: italic; line-height: 1.5; margin-bottom: 8px; }
 .icard-instead { margin-top: 10px; padding-top: 10px; border-top: 1px solid rgba(255,255,255,.08); font-size: 13px; color: rgba(255,255,255,.75); line-height: 1.5; }
 .icard-instead-lbl { display: block; font-size: 10px; text-transform: uppercase; letter-spacing: .05em; color: #6bc48a; margin-bottom: 4px; font-weight: 600; }
+.did-well-item { margin-top: 12px; padding-top: 12px; border-top: 1px solid rgba(255,255,255,.08); }
 .viewtx { margin: 8px 24px 18px; padding: 13px; text-align: center; font-size: 13px; color: #c4a96e;
   background: rgba(196,169,110,.1); border: 1px solid rgba(196,169,110,.25); border-radius: 12px; cursor: pointer; }
 

@@ -13,7 +13,9 @@ import {
   Text, TextInput, TouchableOpacity,
   View,
 } from 'react-native';
-import { assertiveColor, BLOCK_META, resolveInsights, STYLE_METERS } from './shared/insightsView.js';
+import {
+  assertiveColor, BLOCK_META, resolveInsights, STYLE_METERS, STYLES_INTRO,
+} from './shared/insightsView.js';
 
 // When testing on a physical device, change this to your machine's local IP.
 // e.g. 'http://192.168.1.42:4000'
@@ -420,7 +422,7 @@ function CallScreen({ person, conversation, messages, setMessages, onEnd }) {
   );
 }
 
-function AnimatedMeter({ name, value, color }) {
+function StyleMeter({ meter, value, note }) {
   const widthAnim = useRef(new Animated.Value(0)).current;
   useEffect(() => {
     Animated.timing(widthAnim, {
@@ -432,23 +434,30 @@ function AnimatedMeter({ name, value, color }) {
   }, [value]);
 
   return (
-    <View style={s.meter}>
+    <View style={s.styleMeter}>
       <View style={s.meterTop}>
-        <Text style={s.meterLabel}>{name}</Text>
-        <Text style={[s.meterValue, { color }]}>{value}%</Text>
+        <Text style={s.meterLabel}>{meter.label}</Text>
+        <Text style={[s.meterValue, { color: meter.color }]}>{value}%</Text>
       </View>
+      <Text style={s.styleDesc}>{meter.description}</Text>
       <View style={s.track}>
         <Animated.View style={[s.fill, {
           width: widthAnim.interpolate({ inputRange: [0, 100], outputRange: ['0%', '100%'] }),
-          backgroundColor: color,
+          backgroundColor: meter.color,
         }]} />
       </View>
+      {(note?.instances || []).map((inst, i) => (
+        <View key={i} style={i > 0 ? s.styleInstance : s.styleInstanceFirst}>
+          <Text style={s.styleExample}>From your call: “{inst.quote}”</Text>
+          {inst.why ? <Text style={s.styleReason}>{inst.why}</Text> : null}
+        </View>
+      ))}
     </View>
   );
 }
 
 function InsightsScreen({ conv, onHome, onTranscript }) {
-  const { styles, blocks } = resolveInsights(conv);
+  const { styles, blocks, styleNotes } = resolveInsights(conv);
   return (
     <View style={s.scr}>
       <View style={s.topbar}>
@@ -461,8 +470,17 @@ function InsightsScreen({ conv, onHome, onTranscript }) {
         with {conv.person_name || ''} · {conv.duration} · {conv.created_at?.slice(0, 10)}
       </Text>
       <ScrollView style={{ flex: 1 }}>
+        <Text style={s.stylesIntro}>{STYLES_INTRO}</Text>
+        <Text style={s.stylesRef}>
+          Based on SCCR communication styles (passive, aggressive, passive-aggressive, assertive).
+        </Text>
         {STYLE_METERS.map((m) => (
-          <AnimatedMeter key={m.key} name={m.label} value={styles[m.key]} color={m.color} />
+          <StyleMeter
+            key={m.key}
+            meter={m}
+            value={styles[m.key]}
+            note={styleNotes[m.key]}
+          />
         ))}
         <Text style={s.label}>INSIGHTS</Text>
         {blocks.map((block, i) => (
@@ -476,19 +494,28 @@ function InsightsScreen({ conv, onHome, onTranscript }) {
   );
 }
 
-function InsightBlock({ block }) {
-  if (block.type === 'good') {
-    const meta = BLOCK_META.good;
-    return (
-      <View style={s.icard}>
-        <View style={s.icardH}>
-          <View style={[s.dot, { backgroundColor: meta.color }]} />
-          <Text style={[s.icardT, { color: meta.color }]}>{meta.title}</Text>
-        </View>
-        <Text style={s.icardB}>{block.message}</Text>
+function DidWellBlock({ block }) {
+  const meta = BLOCK_META.did_well;
+  const instances =
+    block.instances ||
+    (block.quote ? [{ quote: block.quote, why: block.why }] : []);
+  return (
+    <View style={s.icard}>
+      <View style={s.icardH}>
+        <View style={[s.dot, { backgroundColor: meta.color }]} />
+        <Text style={[s.icardT, { color: meta.color }]}>{meta.title}</Text>
       </View>
-    );
-  }
+      {instances.map((inst, i) => (
+        <View key={i} style={i > 0 ? s.didWellItem : undefined}>
+          <Text style={s.icardQuote}>“{inst.quote}”</Text>
+          {inst.why ? <Text style={s.icardB}>{inst.why}</Text> : null}
+        </View>
+      ))}
+    </View>
+  );
+}
+
+function InsightBlock({ block }) {
   if (block.type === 'legacy') {
     return (
       <>
@@ -497,6 +524,9 @@ function InsightBlock({ block }) {
         {block.used ? <InsightCard color="#9b8cf0" title="You used…" body={block.used} /> : null}
       </>
     );
+  }
+  if (block.type === 'did_well' || block.type === 'went_well') {
+    return <DidWellBlock block={block} />;
   }
   const meta = BLOCK_META[block.type] || { title: block.type, color: '#b8a0d4' };
   return (
@@ -665,6 +695,14 @@ const s = StyleSheet.create({
   convTtl: { fontSize: 21, fontWeight: '600', color: '#f0e6d3', paddingHorizontal: 24, paddingTop: 10, paddingBottom: 2 },
   convMeta: { fontSize: 12, color: 'rgba(255,255,255,.35)', paddingHorizontal: 24, paddingBottom: 14 },
   meter: { marginHorizontal: 24, marginBottom: 16 },
+  styleMeter: { marginHorizontal: 24, marginBottom: 20, paddingBottom: 12, borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,.06)' },
+  stylesIntro: { marginHorizontal: 24, marginBottom: 8, fontSize: 12, lineHeight: 18, color: 'rgba(255,255,255,.45)' },
+  stylesRef: { marginHorizontal: 24, marginBottom: 14, fontSize: 11, lineHeight: 16, color: '#9b8cf0' },
+  styleDesc: { fontSize: 11, lineHeight: 16, color: 'rgba(255,255,255,.4)', marginBottom: 8 },
+  styleInstanceFirst: { marginTop: 8 },
+  styleInstance: { marginTop: 10, paddingTop: 10, borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,.06)' },
+  styleExample: { fontSize: 12, color: '#f0e6d3', fontStyle: 'italic', lineHeight: 18 },
+  styleReason: { marginTop: 4, fontSize: 12, color: 'rgba(255,255,255,.55)', lineHeight: 18 },
   meterTop: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 6 },
   meterLabel: { fontSize: 13, color: 'rgba(255,255,255,.6)' },
   meterValue: { fontSize: 13, fontWeight: '600' },
@@ -680,6 +718,7 @@ const s = StyleSheet.create({
   icardInstead: { marginTop: 10, paddingTop: 10, borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,.08)' },
   icardInsteadLbl: { fontSize: 10, textTransform: 'uppercase', letterSpacing: 0.5, color: '#6bc48a', fontWeight: '600', marginBottom: 4 },
   icardInsteadTx: { fontSize: 13, color: 'rgba(255,255,255,.75)', lineHeight: 20 },
+  didWellItem: { marginTop: 12, paddingTop: 12, borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,.08)' },
   viewTx: { marginHorizontal: 24, marginTop: 8, marginBottom: 18, padding: 13,
     backgroundColor: 'rgba(196,169,110,.1)', borderWidth: 1, borderColor: 'rgba(196,169,110,.25)', borderRadius: 12 },
   viewTxTx: { textAlign: 'center', fontSize: 13, color: '#c4a96e' },
