@@ -320,9 +320,7 @@ function CallScreen({ person, conversation, messages, setMessages, onEnd }) {
       const data = await api.sendTurn(conversation.id, text);
       reply = data?.reply || '';
       done = data?.done || false;
-    } catch (_) {
-      // network/server error — fall through to fallback
-    }
+    } catch (_) {}
     if (!reply) reply = "Go on — tell me more.";
     const speakPromise = speakCoachText(reply, { audioBase64: data?.audio });
     setMessages((m) => [...m, { role: 'them', content: reply }]);
