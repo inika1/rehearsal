@@ -1,5 +1,4 @@
 import { ExpoSpeechRecognitionModule, useSpeechRecognitionEvent } from 'expo-speech-recognition';
-import * as Speech from 'expo-speech';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect, useRef, useState } from 'react';
 import {
@@ -17,6 +16,7 @@ import {
   assertiveColor, BLOCK_META, displayHeadline, displayIssueSummary,
   resolveInsights, STYLE_METERS, STYLES_INTRO,
 } from './shared/insightsView.js';
+import { configureCoachSpeech, speakCoachText, stopCoachSpeech } from './shared/coachSpeech.js';
 import { StylePieChart } from './shared/StylePieChart.js';
 
 // When testing on a physical device, change this to your machine's local IP.
@@ -71,7 +71,10 @@ export default function App() {
   const [newName, setNewName] = useState('');
   const [newRel, setNewRel] = useState('');
 
-  useEffect(() => { api.getPeople().then(setPeople); }, []);
+  useEffect(() => {
+    configureCoachSpeech(API);
+    api.getPeople().then(setPeople);
+  }, []);
 
   const pickPerson = (p) => { setPerson(p); setSituation(''); setScreen('describe'); };
 
@@ -276,40 +279,6 @@ function CallScreen({ person, conversation, messages, setMessages, onEnd }) {
   const fmt = (n) =>
     `${String(Math.floor(n / 60)).padStart(2, '0')}:${String(n % 60).padStart(2, '0')}`;
 
-  const speakText = (text) => new Promise((resolve) => {
-    if (!text) { resolve(); return; }
-    if (Platform.OS === 'web') {
-      if (!window.speechSynthesis) { resolve(); return; }
-      window.speechSynthesis.cancel();
-      const u = new SpeechSynthesisUtterance(text);
-      u.pitch = 1.05;
-      u.rate = 1.2;
-      const pickVoice = () => {
-        const voices = window.speechSynthesis.getVoices();
-        u.voice =
-          voices.find((v) => v.name === 'Samantha') ||
-          voices.find((v) => v.name.includes('Google UK English Female')) ||
-          voices.find((v) => v.lang === 'en-GB') ||
-          voices.find((v) => v.lang.startsWith('en')) ||
-          null;
-        u.onend = resolve;
-        u.onerror = resolve;
-        window.speechSynthesis.speak(u);
-      };
-      if (window.speechSynthesis.getVoices().length) pickVoice();
-      else window.speechSynthesis.addEventListener('voiceschanged', pickVoice, { once: true });
-    } else {
-      const timeout = setTimeout(resolve, 15000);
-      Speech.speak(text, {
-        pitch: 1.05,
-        rate: 1.2,
-        onDone: () => { clearTimeout(timeout); resolve(); },
-        onStopped: () => { clearTimeout(timeout); resolve(); },
-        onError: () => { clearTimeout(timeout); resolve(); },
-      });
-    }
-  });
-
   const startListening = async () => {
     if (busyRef.current || !activeRef.current) return;
     setInput('');
@@ -357,7 +326,7 @@ function CallScreen({ person, conversation, messages, setMessages, onEnd }) {
     }
     if (!reply) reply = "Go on — tell me more.";
     setMessages((m) => [...m, { role: 'them', content: reply }]);
-    await speakText(reply);
+    await speakCoachText(reply);
     busyRef.current = false;
     setBusy(false);
     if (done) {
@@ -413,14 +382,14 @@ function CallScreen({ person, conversation, messages, setMessages, onEnd }) {
       if (first) {
         busyRef.current = true;
         setBusy(true);
-        speakText(first.content).then(() => { busyRef.current = false; setBusy(false); });
+        speakCoachText(first.content).then(() => { busyRef.current = false; setBusy(false); });
       }
     });
     return () => {
       activeRef.current = false;
       clearInterval(timer.current);
       ExpoSpeechRecognitionModule.stop();
-      Speech.stop();
+      stopCoachSpeech();
     };
   }, []);
 

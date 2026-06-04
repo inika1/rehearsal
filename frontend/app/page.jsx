@@ -5,6 +5,7 @@ import {
   assertiveColor, BLOCK_META, displayHeadline, displayIssueSummary,
   resolveInsights, STYLE_METERS, STYLES_INTRO,
 } from './insightsView.js';
+import { configureCoachSpeech, speakCoachText, stopCoachSpeech } from './coachSpeech.js';
 import { StylePieChart } from './StylePieChart.jsx';
 
 const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
@@ -36,7 +37,10 @@ export default function App() {
   const [messages, setMessages] = useState([]);
   const [history, setHistory] = useState([]);
 
-  useEffect(() => { api.getPeople().then(setPeople); }, []);
+  useEffect(() => {
+    configureCoachSpeech(API);
+    api.getPeople().then(setPeople);
+  }, []);
 
   const pickPerson = (p) => { setPerson(p); setScreen('describe'); };
 
@@ -153,15 +157,6 @@ function CallScreen({ person, conversation, messages, setMessages, onEnd }) {
 
   const fmt = (s) => `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`;
 
-  const speak = (text) => new Promise((resolve) => {
-    if (!window.speechSynthesis || !text) { resolve(); return; }
-    window.speechSynthesis.cancel();
-    const u = new SpeechSynthesisUtterance(text);
-    u.onend = resolve;
-    u.onerror = resolve;
-    window.speechSynthesis.speak(u);
-  });
-
   const send = async (text) => {
     if (!text.trim() || busyRef.current) return;
     busyRef.current = true;
@@ -172,7 +167,7 @@ function CallScreen({ person, conversation, messages, setMessages, onEnd }) {
     const data = await api.sendTurn(conversation.id, text);
     const reply = data?.reply;
     if (reply) setMessages((m) => [...m, { role: 'them', content: reply }]);
-    await speak(reply);
+    await speakCoachText(reply);
     busyRef.current = false;
     setBusy(false);
   };
@@ -187,10 +182,12 @@ function CallScreen({ person, conversation, messages, setMessages, onEnd }) {
       if (first) {
         busyRef.current = true;
         setBusy(true);
-        speak(first.content).then(() => { busyRef.current = false; setBusy(false); });
+        speakCoachText(first.content).then(() => { busyRef.current = false; setBusy(false); });
       }
     });
   }, []);
+
+  useEffect(() => () => stopCoachSpeech(), []);
 
   // Timer
   useEffect(() => {
@@ -259,7 +256,7 @@ function CallScreen({ person, conversation, messages, setMessages, onEnd }) {
       <div className="endbtn" onClick={() => {
         activeRef.current = false;
         recog.current?.abort();
-        window.speechSynthesis?.cancel();
+        stopCoachSpeech();
         onEnd(fmt(secs));
       }}>
         <svg width="26" height="26" viewBox="0 0 24 24" fill="none"><path d="M6.5 3h3l1.5 4.5L9 9.5a12 12 0 005.5 5.5l2-2 4.5 1.5v3a2 2 0 01-2 2A16 16 0 014 5a2 2 0 012-2z" stroke="#fff" strokeWidth="2" strokeLinejoin="round" transform="rotate(135 12 12)" /></svg>

@@ -78,7 +78,8 @@ export async function replyAs(person, situation, history) {
     `not to judge their words. Ask questions that help them articulate their feelings, ` +
     `name the specific thing that happened, understand the impact it had on them, figure out what they need, ` +
     `and eventually put it into one clear I-statement: "I feel X when Y, because Z. I'd like W." ` +
-    `Ask one question at a time. Keep replies short — 1-2 sentences. ` +
+    `Ask one question at a time. Keep replies short — 1-2 sentences, like natural spoken English (contractions are fine). ` +
+    `Sound warm and human, not stiff or robotic — no lists or jargon. ` +
     `Once the user has covered feelings, the specific event, the impact, their need, AND has attempted an I-statement ` +
     `(or clearly shown they are ready), wrap up with an encouraging closing line and set done to true. ` +
     `If you would repeat a question you have already asked, set done to true instead. ` +

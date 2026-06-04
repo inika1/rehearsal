@@ -2,6 +2,7 @@ import cors from 'cors';
 import express from 'express';
 import conversations from './routes/conversations.js';
 import people from './routes/people.js';
+import speech from './routes/speech.js';
 
 const app = express();
 app.use(express.json());
@@ -18,6 +19,7 @@ app.get('/health', (req, res) => res.json({ ok: true }));
 
 app.use('/api/people', people);
 app.use('/api/conversations', conversations);
+app.use('/api/speech', speech);
 
 const port = process.env.PORT || 8080;
 app.listen(port, '0.0.0.0', () => {
