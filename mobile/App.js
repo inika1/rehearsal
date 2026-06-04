@@ -269,6 +269,7 @@ function CallScreen({ person, conversation, messages, setMessages, onEnd }) {
   const busyRef = useRef(false);
   const activeRef = useRef(true);
   const sendRef = useRef(null);
+  const secsRef = useRef(0);
 
   const fmt = (n) =>
     `${String(Math.floor(n / 60)).padStart(2, '0')}:${String(n % 60).padStart(2, '0')}`;
@@ -279,11 +280,29 @@ function CallScreen({ person, conversation, messages, setMessages, onEnd }) {
       if (!window.speechSynthesis) { resolve(); return; }
       window.speechSynthesis.cancel();
       const u = new SpeechSynthesisUtterance(text);
-      u.onend = resolve;
-      u.onerror = resolve;
-      window.speechSynthesis.speak(u);
+      u.pitch = 1.05;
+      const pickVoice = () => {
+        const voices = window.speechSynthesis.getVoices();
+        u.voice =
+          voices.find((v) => v.name === 'Samantha') ||
+          voices.find((v) => v.name.includes('Google UK English Female')) ||
+          voices.find((v) => v.lang === 'en-GB') ||
+          voices.find((v) => v.lang.startsWith('en')) ||
+          null;
+        u.onend = resolve;
+        u.onerror = resolve;
+        window.speechSynthesis.speak(u);
+      };
+      if (window.speechSynthesis.getVoices().length) pickVoice();
+      else window.speechSynthesis.addEventListener('voiceschanged', pickVoice, { once: true });
     } else {
-      Speech.speak(text, { onDone: resolve, onStopped: resolve, onError: resolve });
+      Speech.speak(text, {
+        voice: 'com.apple.voice.compact.en-US.Samantha',
+        pitch: 1.05,
+        onDone: resolve,
+        onStopped: resolve,
+        onError: resolve,
+      });
     }
   });
 
@@ -325,10 +344,15 @@ function CallScreen({ person, conversation, messages, setMessages, onEnd }) {
     setInput('');
     const data = await api.sendTurn(conversation.id, text);
     const reply = data?.reply;
+    const done = data?.done;
     if (reply) setMessages((m) => [...m, { role: 'them', content: reply }]);
     await speakText(reply);
     busyRef.current = false;
     setBusy(false);
+    if (done) {
+      activeRef.current = false;
+      setTimeout(() => onEnd(fmt(secsRef.current)), 2000);
+    }
   };
   sendRef.current = sendText;
 
@@ -356,7 +380,7 @@ function CallScreen({ person, conversation, messages, setMessages, onEnd }) {
 
   // Timer + load initial messages and speak first coach message
   useEffect(() => {
-    timer.current = setInterval(() => setSecs((n) => n + 1), 1000);
+    timer.current = setInterval(() => setSecs((n) => { secsRef.current = n + 1; return n + 1; }), 1000);
     api.getConversation(conversation.id).then((full) => {
       const msgs = full.messages || [];
       setMessages(msgs);

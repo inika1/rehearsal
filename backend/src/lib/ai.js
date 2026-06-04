@@ -57,28 +57,44 @@ async function callGroq(system, messages, maxTokens = 400) {
   return data.choices[0].message.content;
 }
 
+const WRAP_UP = `You've got everything you need — you know what you feel, what specifically happened, how it affected you, and what you want. You're ready for this conversation.`;
+
 export async function replyAs(person, situation, history) {
+  const userMsgCount = history.filter((m) => m.role === 'me').length;
+
   if (!API_KEY) {
-    const idx = Math.min(history.filter((m) => m.role === 'me').length - 1, GUIDED_QUESTIONS.length - 1);
-    return GUIDED_QUESTIONS[Math.max(0, idx)];
+    if (userMsgCount >= GUIDED_QUESTIONS.length) {
+      return { reply: WRAP_UP, done: true };
+    }
+    const idx = Math.max(0, userMsgCount - 1);
+    return { reply: GUIDED_QUESTIONS[idx], done: false };
   }
 
   const system =
     `You are a conversation coach helping someone prepare to talk to ${person.name} ` +
     `(their ${person.relationship || 'contact'}) about: "${situation}". ` +
     `Your only job is to help them get clear on what they want to say — not to roleplay as ${person.name}, ` +
-    `not to judge their words. Just ask questions that help them articulate their feelings, ` +
-    `name the specific thing that happened, understand the impact it had on them, and figure out what they need. ` +
-    `Work through it step by step: feelings first, then the specific behavior or moment, then the impact, ` +
-    `then what they actually want. Once they have all of that, help them put it into one clear thing they can say. ` +
-    `Ask one question at a time. Keep replies short — 1-2 sentences.`;
+    `not to judge their words. Ask questions that help them articulate their feelings, ` +
+    `name the specific thing that happened, understand the impact it had on them, figure out what they need, ` +
+    `and eventually put it into one clear I-statement: "I feel X when Y, because Z. I'd like W." ` +
+    `Ask one question at a time. Keep replies short — 1-2 sentences. ` +
+    `Once the user has covered feelings, the specific event, the impact, their need, AND has attempted an I-statement ` +
+    `(or clearly shown they are ready), wrap up with an encouraging closing line and set done to true. ` +
+    `If you would repeat a question you have already asked, set done to true instead. ` +
+    `ALWAYS respond with JSON only — no markdown, no extra text: {"reply": "<your message>", "done": <true|false>}`;
 
   const messages = history.map((m) => ({
     role: m.role === 'me' ? 'user' : 'assistant',
     content: m.content,
   }));
 
-  return callGroq(system, messages, 200);
+  const raw = await callGroq(system, messages, 300);
+  try {
+    const parsed = JSON.parse(raw.replace(/```json|```/g, '').trim());
+    return { reply: String(parsed.reply || ''), done: Boolean(parsed.done) };
+  } catch {
+    return { reply: raw.trim(), done: false };
+  }
 }
 
 function mockDidWellInstances(myTurns) {

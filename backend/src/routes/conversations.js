@@ -89,11 +89,11 @@ router.post('/:id/turn', async (req, res) => {
   if (hErr) return res.status(500).json({ error: hErr.message });
 
   try {
-    const reply = await replyAs(person, conv.situation, history);
+    const { reply, done } = await replyAs(person, conv.situation, history);
     await supabase
       .from('messages')
       .insert({ conversation_id: conv.id, role: 'them', content: reply });
-    res.json({ reply });
+    res.json({ reply, done });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
