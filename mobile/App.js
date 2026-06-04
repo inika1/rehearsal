@@ -85,9 +85,7 @@ export default function App() {
   };
 
   const startCall = async () => {
-    const title = (situation && situation.trim().length > 0)
-      ? situation.trim().split(/\s+/).slice(0, 5).join(' ')
-      : 'Untitled';
+    const title = situation.split(' ').slice(0, 3).join(' ') || 'Untitled';
     const conv = await api.startConversation(person.id, title, situation);
     const fullConv = await api.getConversation(conv.id);
     setConversation(fullConv);
@@ -188,32 +186,17 @@ function ChooseScreen({ people, onPick, onAdd }) {
         <Text style={s.sub}>Who do you need to talk to?</Text>
       </View>
 
-      <ScrollView style={{ flex: 1 }} contentContainerStyle={s.peopleScroll}>
-        {Platform.OS === 'web' ? (
-          <View style={s.people}>
-            {people.map((p, i) => (
-              <TouchableOpacity key={p.id} onPress={() => onPick(p)} style={s.person}>
-                <View style={[s.pcircle, { backgroundColor: colorFor(i) + '2e' }]}>
-                  <Text style={[s.pcircleText, { color: colorFor(i) }]}>{p.name[0]}</Text>
-                </View>
-                <Text style={s.pname}>{p.name}</Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-        ) : (
-          people.map((p, i) => (
-            <TouchableOpacity key={p.id} onPress={() => onPick(p)} style={s.personCard}>
-              <View style={[s.personCardAvatar, { backgroundColor: colorFor(i) + '2e' }]}>
-                <Text style={[s.personCardAvatarTx, { color: colorFor(i) }]}>{p.name[0]}</Text>
+      <ScrollView contentContainerStyle={s.peopleScroll} style={{ flex: 1 }}>
+        <View style={s.people}>
+          {people.map((p, i) => (
+            <TouchableOpacity key={p.id} onPress={() => onPick(p)} style={s.person}>
+              <View style={[s.pcircle, { backgroundColor: colorFor(i) + '2e' }]}> 
+                <Text style={[s.pcircleText, { color: colorFor(i) }]}>{p.name[0]}</Text>
               </View>
-              <View style={s.personCardInfo}>
-                <Text style={s.personCardName}>{p.name}</Text>
-                {p.relationship ? <Text style={s.personCardRel}>{p.relationship}</Text> : null}
-              </View>
-              <Text style={s.personCardChevron}>›</Text>
+              <Text style={s.pname}>{p.name}</Text>
             </TouchableOpacity>
-          ))
-        )}
+          ))}
+        </View>
       </ScrollView>
 
       <View style={s.footer}>
@@ -458,7 +441,7 @@ function CallScreen({ person, conversation, messages, setMessages, onEnd }) {
         </TouchableOpacity>
       </View>
       <TouchableOpacity onPress={() => onEnd(fmt(secs))} style={s.endBtn}>
-        <Text style={s.endBtnTx}>📞</Text>
+        <Text style={{ fontSize: 24 }}>📵</Text>
       </TouchableOpacity>
       <Text style={s.hint}>End call to see your insights</Text>
     </KeyboardAvoidingView>
@@ -639,23 +622,14 @@ const s = StyleSheet.create({
   back: { color: '#c4a96e', fontSize: 13, marginBottom: 10 },
   label: { fontSize: 11, color: 'rgba(255,255,255,.3)', paddingHorizontal: 24, marginTop: 16, marginBottom: 10, letterSpacing: 0.8 },
 
-  // Choose — web (circles) + mobile (cards)
+  // Choose
   people: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-around', paddingHorizontal: 24, paddingTop: 30, paddingBottom: 10 },
   person: { alignItems: 'center', gap: 9, marginBottom: 12 },
-  peopleScroll: { paddingHorizontal: Platform.OS === 'web' ? 0 : 20, paddingTop: Platform.OS === 'web' ? 30 : 8, paddingBottom: 12 },
+  peopleScroll: { paddingHorizontal: 0, paddingBottom: 12 },
   footer: { paddingHorizontal: 20, paddingBottom: 20 },
   pcircle: { width: 66, height: 66, borderRadius: 33, alignItems: 'center', justifyContent: 'center' },
   pcircleText: { fontSize: 24, fontWeight: '600' },
   pname: { fontSize: 12, color: 'rgba(255,255,255,.55)' },
-  personCard: { flexDirection: 'row', alignItems: 'center', gap: 14,
-    backgroundColor: 'rgba(255,255,255,.05)', borderWidth: 1, borderColor: 'rgba(255,255,255,.08)',
-    borderRadius: 16, padding: 14, marginBottom: 10 },
-  personCardAvatar: { width: 52, height: 52, borderRadius: 26, alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
-  personCardAvatarTx: { fontSize: 20, fontWeight: '600' },
-  personCardInfo: { flex: 1 },
-  personCardName: { fontSize: 16, color: '#f0e6d3', fontWeight: '500' },
-  personCardRel: { fontSize: 12, color: 'rgba(255,255,255,.4)', marginTop: 2 },
-  personCardChevron: { fontSize: 24, color: 'rgba(255,255,255,.2)' },
   addnew: { width: '100%', padding: 16, borderWidth: 1, borderStyle: 'dashed', borderColor: 'rgba(255,255,255,.15)', borderRadius: 14, backgroundColor: 'transparent' },
   addnewTx: { color: 'rgba(255,255,255,.5)', fontSize: 14, textAlign: 'center' },
 
@@ -696,10 +670,9 @@ const s = StyleSheet.create({
   micBtnActive: { backgroundColor: 'rgba(229,77,77,.3)' },
   sendBtn: { width: 42, borderRadius: 12, backgroundColor: '#b8a0d4', alignItems: 'center', justifyContent: 'center' },
   sendBtnTx: { color: '#0e0e1a', fontSize: 16, fontWeight: '600' },
-  endBtn: { width: 80, height: 80, borderRadius: 40, backgroundColor: '#e54d4d',
+  endBtn: { width: 62, height: 62, borderRadius: 31, backgroundColor: '#e54d4d',
     alignItems: 'center', justifyContent: 'center',
-    shadowColor: '#e54d4d', shadowOpacity: 0.4, shadowRadius: 14, shadowOffset: { width: 0, height: 6 } },
-  endBtnTx: { fontSize: 28, transform: [{ rotate: '135deg' }] },
+    shadowColor: '#e54d4d', shadowOpacity: 0.35, shadowRadius: 12, shadowOffset: { width: 0, height: 6 } },
   hint: { fontSize: 11, color: 'rgba(255,255,255,.3)', marginTop: 10 },
 
   // Insights

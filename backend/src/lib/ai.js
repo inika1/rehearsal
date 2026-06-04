@@ -30,7 +30,8 @@ const ANALYSIS_SCHEMA = `{
   "defensive": null | {"quote": "...", "why": "...", "instead": "..."},
   "stonewalling": null | {"quote": "...", "why": "...", "instead": "..."},
   "conversation_good": <true if NONE of the four horsemen apply to the user, else false>,
-  "issue_summary": "<one sentence summarising what the user is trying to resolve in this rehearsal>",
+  "issue_title": "<4-6 words: short label for the issue, e.g. 'Kieran not taking bins out'>",
+  "issue_summary": "<one sentence in second person (you/your) summarising the issue, not 'The user...'>",
   "did_well": {
     "instances": [
       {"quote": "<exact words the user said>", "why": "<why this moment was positive>"},
@@ -202,7 +203,8 @@ export async function analyse(person, situation, transcript) {
     `If TWO or more horsemen apply, return each of them. ` +
     `If ONE horseman applies but a second is borderline, include both horseman blocks. ` +
     `If any horseman is present, conversation_good must be false. ` +
-    `issue_summary must be one clear sentence about what the user is trying to work through (from the situation and transcript). ` +
+    `issue_title must be 4-6 words naming the core issue (not a full sentence). ` +
+    `issue_summary must be one clear sentence in second person (you/your) about what you are working through—never start with "The user". ` +
     `Return ONLY JSON, no markdown, matching this schema:\n${ANALYSIS_SCHEMA}`;
 
   const convoText = transcript

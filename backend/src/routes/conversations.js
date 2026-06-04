@@ -121,15 +121,17 @@ router.post('/:id/finish', async (req, res) => {
 
   try {
     const a = await analyse(person, conv.situation, transcript);
+    const wasUntitled = !conv.title || conv.title.trim().toLowerCase() === 'untitled';
     const { data: updated, error: uErr } = await supabase
       .from('conversations')
       .update({
         duration: duration || '0:00',
+        title: wasUntitled ? a.issueTitle : conv.title,
         passive: a.styles.passive,
         aggressive: a.styles.aggressive,
         passive_aggressive: a.styles.passive_aggressive,
         assertive: a.styles.assertive,
-        insights: { blocks: a.blocks, style_notes: a.styleNotes },
+        insights: { blocks: a.blocks, style_notes: a.styleNotes, issue_title: a.issueTitle },
         issue_summary: a.issueSummary,
         tension: a.styles.assertive,
         emotion: null,

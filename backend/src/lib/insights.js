@@ -189,9 +189,33 @@ function didWellBlock(raw) {
   };
 }
 
+export function toShortTitle(text, maxWords = 5) {
+  const words = (text || '')
+    .trim()
+    .replace(/^["']|["']$/g, '')
+    .replace(/[.!?,;:]+$/, '')
+    .split(/\s+/)
+    .filter(Boolean);
+  return words.slice(0, maxWords).join(' ');
+}
+
+function pickIssueTitle(raw, situation) {
+  const fromAi = (raw.issue_title || '').trim();
+  if (fromAi) return toShortTitle(fromAi, 6);
+  const sit = (situation || '').trim();
+  if (sit) return toShortTitle(sit, 5);
+  return 'Rehearsal';
+}
+
 function pickIssueSummary(raw, situation) {
-  const fromAi = (raw.issue_summary || '').trim();
-  if (fromAi) return fromAi;
+  let fromAi = (raw.issue_summary || '').trim();
+  if (fromAi) {
+    fromAi = fromAi
+      .replace(/^The user is trying to work through a situation where they /i, "You're ")
+      .replace(/^The user feels /i, "You feel ")
+      .replace(/^The user /i, "You ");
+    return fromAi;
+  }
   const sit = (situation || '').trim();
   if (!sit) return 'Preparing for a difficult conversation.';
   const sentence = sit.match(/^[^.!?]+[.!?]?/)?.[0]?.trim() || sit;
@@ -201,6 +225,7 @@ function pickIssueSummary(raw, situation) {
 export function normalizeInsights(raw, transcript = [], situation = '') {
   const styles = normalizeStyles(raw);
   const styleNotes = normalizeStyleNotes(raw, styles, transcript);
+  const issueTitle = pickIssueTitle(raw, situation);
   const issueSummary = pickIssueSummary(raw, situation);
   const horsemen = HORSEMAN_KEYS.map((key) => ({ key, block: pickBlock(raw, key) })).filter(
     (x) => x.block
@@ -211,5 +236,5 @@ export function normalizeInsights(raw, transcript = [], situation = '') {
     didWellBlock(raw),
   ];
 
-  return { styles, styleNotes, blocks, issueSummary };
+  return { styles, styleNotes, blocks, issueTitle, issueSummary };
 }

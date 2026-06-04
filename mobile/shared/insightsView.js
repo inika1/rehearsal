@@ -104,20 +104,37 @@ function finalizeBlocks(blocks) {
   return [...horseman, didWell || DEFAULT_DID_WELL];
 }
 
+export function toShortTitle(text, maxWords = 5) {
+  const words = (text || '')
+    .trim()
+    .replace(/^["']|["']$/g, '')
+    .replace(/[.!?,;:]+$/, '')
+    .split(/\s+/)
+    .filter(Boolean);
+  return words.slice(0, maxWords).join(' ');
+}
+
 export function displayHeadline(conv) {
   const title = (conv.title || '').trim();
-  const situation = (conv.situation || '').trim();
   if (title && title.toLowerCase() !== 'untitled') return title;
-  if (situation) {
-    const words = situation.split(/\s+/).slice(0, 5).join(' ');
-    return words.length < situation.length ? `${words}…` : words;
-  }
-  return title || 'Rehearsal';
+  const fromInsights = shortTitleFromInsights(conv);
+  if (fromInsights) return fromInsights;
+  const situation = (conv.situation || '').trim();
+  if (situation) return toShortTitle(situation, 5);
+  const summary = (conv.issue_summary || '').trim();
+  if (summary) return toShortTitle(summary, 5);
+  return 'Rehearsal';
 }
 
 export function displayIssueSummary(conv) {
-  const summary = (conv.issue_summary || '').trim();
-  if (summary) return summary;
+  let summary = (conv.issue_summary || '').trim();
+  if (summary) {
+    summary = summary
+      .replace(/^The user is trying to work through a situation where they /i, "You're ")
+      .replace(/^The user feels /i, "You feel ")
+      .replace(/^The user /i, 'You ');
+    return summary;
+  }
   const situation = (conv.situation || '').trim();
   if (!situation) return null;
   const sentence = situation.match(/^[^.!?]+[.!?]?/)?.[0]?.trim() || situation;
@@ -140,12 +157,29 @@ function parseInsightsField(conv) {
     }
   }
   if (payload && Array.isArray(payload.blocks)) {
-    return { blocks: payload.blocks, styleNotes: payload.style_notes || null };
+    return {
+      blocks: payload.blocks,
+      styleNotes: payload.style_notes || null,
+      issueTitle: payload.issue_title || null,
+    };
   }
   if (Array.isArray(payload) && payload.length > 0) {
     return { blocks: payload, styleNotes: null };
   }
-  return { blocks: null, styleNotes: null };
+  return { blocks: null, styleNotes: null, issueTitle: null };
+}
+
+function shortTitleFromInsights(conv) {
+  let payload = conv.insights;
+  if (typeof payload === 'string') {
+    try {
+      payload = JSON.parse(payload);
+    } catch {
+      return null;
+    }
+  }
+  const t = payload?.issue_title?.trim();
+  return t ? toShortTitle(t, 6) : null;
 }
 
 export function resolveInsights(conv) {
