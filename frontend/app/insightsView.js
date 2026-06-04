@@ -109,7 +109,7 @@ export function displayHeadline(conv) {
   const situation = (conv.situation || '').trim();
   if (title && title.toLowerCase() !== 'untitled') return title;
   if (situation) {
-    const words = situation.split(/\s+/).slice(0, 6).join(' ');
+    const words = situation.split(/\s+/).slice(0, 5).join(' ');
     return words.length < situation.length ? `${words}…` : words;
   }
   return title || 'Rehearsal';
