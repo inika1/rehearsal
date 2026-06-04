@@ -184,17 +184,32 @@ function ChooseScreen({ people, onPick, onAdd }) {
         <Text style={s.sub}>Who do you need to talk to?</Text>
       </View>
 
-      <ScrollView contentContainerStyle={s.peopleScroll} style={{ flex: 1 }}>
-        <View style={s.people}>
-          {people.map((p, i) => (
-            <TouchableOpacity key={p.id} onPress={() => onPick(p)} style={s.person}>
-              <View style={[s.pcircle, { backgroundColor: colorFor(i) + '2e' }]}> 
-                <Text style={[s.pcircleText, { color: colorFor(i) }]}>{p.name[0]}</Text>
+      <ScrollView style={{ flex: 1 }} contentContainerStyle={s.peopleScroll}>
+        {Platform.OS === 'web' ? (
+          <View style={s.people}>
+            {people.map((p, i) => (
+              <TouchableOpacity key={p.id} onPress={() => onPick(p)} style={s.person}>
+                <View style={[s.pcircle, { backgroundColor: colorFor(i) + '2e' }]}>
+                  <Text style={[s.pcircleText, { color: colorFor(i) }]}>{p.name[0]}</Text>
+                </View>
+                <Text style={s.pname}>{p.name}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        ) : (
+          people.map((p, i) => (
+            <TouchableOpacity key={p.id} onPress={() => onPick(p)} style={s.personCard}>
+              <View style={[s.personCardAvatar, { backgroundColor: colorFor(i) + '2e' }]}>
+                <Text style={[s.personCardAvatarTx, { color: colorFor(i) }]}>{p.name[0]}</Text>
               </View>
-              <Text style={s.pname}>{p.name}</Text>
+              <View style={s.personCardInfo}>
+                <Text style={s.personCardName}>{p.name}</Text>
+                {p.relationship ? <Text style={s.personCardRel}>{p.relationship}</Text> : null}
+              </View>
+              <Text style={s.personCardChevron}>›</Text>
             </TouchableOpacity>
-          ))}
-        </View>
+          ))
+        )}
       </ScrollView>
 
       <View style={s.footer}>
@@ -439,7 +454,7 @@ function CallScreen({ person, conversation, messages, setMessages, onEnd }) {
         </TouchableOpacity>
       </View>
       <TouchableOpacity onPress={() => onEnd(fmt(secs))} style={s.endBtn}>
-        <Text style={{ fontSize: 24 }}>📵</Text>
+        <Text style={s.endBtnTx}>End</Text>
       </TouchableOpacity>
       <Text style={s.hint}>End call to see your insights</Text>
     </KeyboardAvoidingView>
@@ -660,13 +675,22 @@ const s = StyleSheet.create({
   label: { fontSize: 11, color: 'rgba(255,255,255,.3)', paddingHorizontal: 24, marginTop: 16, marginBottom: 10, letterSpacing: 0.8 },
 
   // Choose
-  people: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-around', paddingHorizontal: 24, paddingTop: 30, paddingBottom: 10 },
+  peopleScroll: { paddingHorizontal: Platform.OS === 'web' ? 0 : 20, paddingTop: Platform.OS === 'web' ? 30 : 8, paddingBottom: 12 },
+  people: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-around', paddingHorizontal: 24, paddingBottom: 10 },
   person: { alignItems: 'center', gap: 9, marginBottom: 12 },
-  peopleScroll: { paddingHorizontal: 0, paddingBottom: 12 },
-  footer: { paddingHorizontal: 20, paddingBottom: 20 },
   pcircle: { width: 66, height: 66, borderRadius: 33, alignItems: 'center', justifyContent: 'center' },
   pcircleText: { fontSize: 24, fontWeight: '600' },
   pname: { fontSize: 12, color: 'rgba(255,255,255,.55)' },
+  footer: { paddingHorizontal: 20, paddingBottom: 20 },
+  personCard: { flexDirection: 'row', alignItems: 'center', gap: 14,
+    backgroundColor: 'rgba(255,255,255,.05)', borderWidth: 1, borderColor: 'rgba(255,255,255,.08)',
+    borderRadius: 16, padding: 14, marginBottom: 10 },
+  personCardAvatar: { width: 52, height: 52, borderRadius: 26, alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
+  personCardAvatarTx: { fontSize: 20, fontWeight: '600' },
+  personCardInfo: { flex: 1 },
+  personCardName: { fontSize: 16, color: '#f0e6d3', fontWeight: '500' },
+  personCardRel: { fontSize: 12, color: 'rgba(255,255,255,.4)', marginTop: 2 },
+  personCardChevron: { fontSize: 24, color: 'rgba(255,255,255,.2)' },
   addnew: { width: '100%', padding: 16, borderWidth: 1, borderStyle: 'dashed', borderColor: 'rgba(255,255,255,.15)', borderRadius: 14, backgroundColor: 'transparent' },
   addnewTx: { color: 'rgba(255,255,255,.5)', fontSize: 14, textAlign: 'center' },
 
@@ -707,9 +731,10 @@ const s = StyleSheet.create({
   micBtnActive: { backgroundColor: 'rgba(229,77,77,.3)' },
   sendBtn: { width: 42, borderRadius: 12, backgroundColor: '#b8a0d4', alignItems: 'center', justifyContent: 'center' },
   sendBtnTx: { color: '#0e0e1a', fontSize: 16, fontWeight: '600' },
-  endBtn: { width: 62, height: 62, borderRadius: 31, backgroundColor: '#e54d4d',
+  endBtn: { paddingHorizontal: 32, paddingVertical: 14, borderRadius: 30, backgroundColor: '#e54d4d',
     alignItems: 'center', justifyContent: 'center',
     shadowColor: '#e54d4d', shadowOpacity: 0.35, shadowRadius: 12, shadowOffset: { width: 0, height: 6 } },
+  endBtnTx: { color: '#fff', fontSize: 15, fontWeight: '700', letterSpacing: 0.5 },
   hint: { fontSize: 11, color: 'rgba(255,255,255,.3)', marginTop: 10 },
 
   // Insights
