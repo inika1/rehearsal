@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { analyse, replyAs } from '../lib/ai.js';
+import { synthesizeCoachSpeechBase64 } from '../lib/coachSpeech.js';
 import { supabase } from '../lib/supabase.js';
 
 const router = Router();
@@ -36,11 +37,18 @@ router.post('/', async (req, res) => {
   if (error) return res.status(500).json({ error: error.message });
 
   const firstQuestion = `Let's prep you for this conversation. What do you want to say to ${personName} — just say it out loud, don't filter it yet.`;
-  await supabase
-    .from('messages')
-    .insert({ conversation_id: data.id, role: 'them', content: firstQuestion });
-  
-  res.json(data);
+  const [_, openingAudio] = await Promise.all([
+    supabase
+      .from('messages')
+      .insert({ conversation_id: data.id, role: 'them', content: firstQuestion }),
+    synthesizeCoachSpeechBase64(firstQuestion),
+  ]);
+
+  res.json({
+    ...data,
+    opening_audio: openingAudio,
+    messages: [{ role: 'them', content: firstQuestion }],
+  });
 });
 
 // GET /api/conversations/:id   (with person name + messages)
@@ -90,10 +98,12 @@ router.post('/:id/turn', async (req, res) => {
 
   try {
     const { reply, done } = await replyAs(person, conv.situation, history);
+    const audioPromise = synthesizeCoachSpeechBase64(reply);
     await supabase
       .from('messages')
       .insert({ conversation_id: conv.id, role: 'them', content: reply });
-    res.json({ reply, done });
+    const audio = await audioPromise;
+    res.json({ reply, done, audio });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

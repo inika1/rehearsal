@@ -56,7 +56,7 @@ export default function App() {
     const title = situation.split(' ').slice(0, 3).join(' ') || 'Untitled';
     const conv = await api.startConversation(person.id, title, situation);
     setConversation(conv);
-    setMessages([]);
+    setMessages(conv.messages || []);
     setScreen('call');
   };
 
@@ -166,25 +166,26 @@ function CallScreen({ person, conversation, messages, setMessages, onEnd }) {
     setInput('');
     const data = await api.sendTurn(conversation.id, text);
     const reply = data?.reply;
-    if (reply) setMessages((m) => [...m, { role: 'them', content: reply }]);
-    await speakCoachText(reply);
+    if (reply) {
+      const speakPromise = speakCoachText(reply, { audioBase64: data?.audio });
+      setMessages((m) => [...m, { role: 'them', content: reply }]);
+      await speakPromise;
+    }
     busyRef.current = false;
     setBusy(false);
   };
   sendRef.current = send;
 
-  // Load initial messages from DB and speak the first coach message
   useEffect(() => {
-    api.getConversation(conversation.id).then((full) => {
-      const msgs = full.messages || [];
-      setMessages(msgs);
-      const first = msgs.find((m) => m.role === 'them');
-      if (first) {
-        busyRef.current = true;
-        setBusy(true);
-        speakCoachText(first.content).then(() => { busyRef.current = false; setBusy(false); });
-      }
-    });
+    const first = messages.find((m) => m.role === 'them');
+    if (first) {
+      busyRef.current = true;
+      setBusy(true);
+      speakCoachText(first.content, { audioBase64: conversation?.opening_audio }).then(() => {
+        busyRef.current = false;
+        setBusy(false);
+      });
+    }
   }, []);
 
   useEffect(() => () => stopCoachSpeech(), []);

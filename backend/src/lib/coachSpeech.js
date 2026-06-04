@@ -20,7 +20,7 @@ export async function synthesizeCoachSpeech(text) {
   const phrase = humanizeForSpeech(text);
   if (!phrase) return null;
 
-  const tts = new EdgeTTS({ voice: VOICE, rate: RATE, pitch: '+0Hz', timeout: 20000 });
+  const tts = new EdgeTTS({ voice: VOICE, rate: RATE, pitch: '+0Hz', timeout: 12000 });
   const tmp = path.join(os.tmpdir(), `coach-${Date.now()}-${Math.random().toString(36).slice(2)}.mp3`);
 
   try {
@@ -34,4 +34,9 @@ export async function synthesizeCoachSpeech(text) {
       /* ignore */
     }
   }
+}
+
+export async function synthesizeCoachSpeechBase64(text) {
+  const buf = await synthesizeCoachSpeech(text);
+  return buf ? buf.toString('base64') : null;
 }

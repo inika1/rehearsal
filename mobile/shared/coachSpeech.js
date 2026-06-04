@@ -8,11 +8,25 @@ const PITCH = 0.98;
 let speechApiUrl = null;
 let activeSound = null;
 let nativeVoiceId = null;
+let audioModeReady = false;
 
 const VOICE_PATTERNS = [/enhanced/i, /premium/i, /neural/i, /samantha/i, /karen/i, /serena/i];
 
 export function configureCoachSpeech(apiUrl) {
   speechApiUrl = apiUrl?.replace(/\/$/, '') || null;
+  ensureAudioMode().catch(() => {});
+}
+
+async function ensureAudioMode() {
+  if (audioModeReady) return;
+  await Audio.setAudioModeAsync({
+    playsInSilentModeIOS: true,
+    allowsRecordingIOS: true,
+    interruptionModeIOS: 2,
+    shouldDuckAndroid: true,
+    playThroughEarpieceAndroid: false,
+  });
+  audioModeReady = true;
 }
 
 export async function stopCoachSpeech() {
@@ -56,10 +70,14 @@ function arrayBufferToBase64(buffer) {
 }
 
 async function playMp3Base64(base64) {
+  if (!base64) return;
   await stopCoachSpeech();
-  await Audio.setAudioModeAsync({ playsInSilentModeIOS: true });
+  await ensureAudioMode();
   const uri = `data:audio/mpeg;base64,${base64}`;
-  const { sound } = await Audio.Sound.createAsync({ uri });
+  const { sound } = await Audio.Sound.createAsync(
+    { uri },
+    { shouldPlay: true, volume: 1 },
+  );
   activeSound = sound;
   return new Promise((resolve) => {
     sound.setOnPlaybackStatusUpdate((status) => {
@@ -69,7 +87,6 @@ async function playMp3Base64(base64) {
         resolve();
       }
     });
-    sound.playAsync().catch(resolve);
   });
 }
 
@@ -153,9 +170,15 @@ function speakWithSystemVoice(phrase) {
   });
 }
 
-export async function speakCoachText(text) {
+/** Pass audioBase64 from the API when available — skips a second network + TTS round trip. */
+export async function speakCoachText(text, { audioBase64 } = {}) {
   const phrase = humanizeForSpeech(text);
   if (!phrase) return;
+
+  if (audioBase64) {
+    await playMp3Base64(audioBase64);
+    return;
+  }
 
   try {
     const base64 = await fetchNeuralSpeech(phrase);
@@ -164,7 +187,7 @@ export async function speakCoachText(text) {
       return;
     }
   } catch {
-    /* fall through to system voice */
+    /* fall through */
   }
 
   await speakWithSystemVoice(phrase);

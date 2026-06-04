@@ -90,9 +90,8 @@ export default function App() {
   const startCall = async () => {
     const title = situation.split(' ').slice(0, 3).join(' ') || 'Untitled';
     const conv = await api.startConversation(person.id, title, situation);
-    const fullConv = await api.getConversation(conv.id);
-    setConversation(fullConv);
-    setMessages(fullConv.messages || []);
+    setConversation(conv);
+    setMessages(conv.messages || []);
     setScreen('call');
   };
 
@@ -325,8 +324,9 @@ function CallScreen({ person, conversation, messages, setMessages, onEnd }) {
       // network/server error — fall through to fallback
     }
     if (!reply) reply = "Go on — tell me more.";
+    const speakPromise = speakCoachText(reply, { audioBase64: data?.audio });
     setMessages((m) => [...m, { role: 'them', content: reply }]);
-    await speakCoachText(reply);
+    await speakPromise;
     busyRef.current = false;
     setBusy(false);
     if (done) {
@@ -372,19 +372,18 @@ function CallScreen({ person, conversation, messages, setMessages, onEnd }) {
     }
   }, [busy, listening]);
 
-  // Timer + load initial messages and speak first coach message
+  // Timer + speak opening coach message (audio prefetched when conversation started)
   useEffect(() => {
     timer.current = setInterval(() => setSecs((n) => { secsRef.current = n + 1; return n + 1; }), 1000);
-    api.getConversation(conversation.id).then((full) => {
-      const msgs = full.messages || [];
-      setMessages(msgs);
-      const first = msgs.find((m) => m.role === 'them');
-      if (first) {
-        busyRef.current = true;
-        setBusy(true);
-        speakCoachText(first.content).then(() => { busyRef.current = false; setBusy(false); });
-      }
-    });
+    const first = messages.find((m) => m.role === 'them');
+    if (first) {
+      busyRef.current = true;
+      setBusy(true);
+      speakCoachText(first.content, { audioBase64: conversation?.opening_audio }).then(() => {
+        busyRef.current = false;
+        setBusy(false);
+      });
+    }
     return () => {
       activeRef.current = false;
       clearInterval(timer.current);
