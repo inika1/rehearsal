@@ -104,6 +104,26 @@ function finalizeBlocks(blocks) {
   return [...horseman, didWell || DEFAULT_DID_WELL];
 }
 
+export function displayHeadline(conv) {
+  const title = (conv.title || '').trim();
+  const situation = (conv.situation || '').trim();
+  if (title && title.toLowerCase() !== 'untitled') return title;
+  if (situation) {
+    const words = situation.split(/\s+/).slice(0, 6).join(' ');
+    return words.length < situation.length ? `${words}…` : words;
+  }
+  return title || 'Rehearsal';
+}
+
+export function displayIssueSummary(conv) {
+  const summary = (conv.issue_summary || '').trim();
+  if (summary) return summary;
+  const situation = (conv.situation || '').trim();
+  if (!situation) return null;
+  const sentence = situation.match(/^[^.!?]+[.!?]?/)?.[0]?.trim() || situation;
+  return sentence.length > 180 ? `${sentence.slice(0, 177)}…` : sentence;
+}
+
 export function assertiveColor(v) {
   if (v >= 60) return '#6bc48a';
   if (v >= 40) return '#c4a96e';

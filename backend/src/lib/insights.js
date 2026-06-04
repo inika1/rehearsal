@@ -189,9 +189,19 @@ function didWellBlock(raw) {
   };
 }
 
-export function normalizeInsights(raw, transcript = []) {
+function pickIssueSummary(raw, situation) {
+  const fromAi = (raw.issue_summary || '').trim();
+  if (fromAi) return fromAi;
+  const sit = (situation || '').trim();
+  if (!sit) return 'Preparing for a difficult conversation.';
+  const sentence = sit.match(/^[^.!?]+[.!?]?/)?.[0]?.trim() || sit;
+  return sentence.length > 200 ? `${sentence.slice(0, 197)}…` : sentence;
+}
+
+export function normalizeInsights(raw, transcript = [], situation = '') {
   const styles = normalizeStyles(raw);
   const styleNotes = normalizeStyleNotes(raw, styles, transcript);
+  const issueSummary = pickIssueSummary(raw, situation);
   const horsemen = HORSEMAN_KEYS.map((key) => ({ key, block: pickBlock(raw, key) })).filter(
     (x) => x.block
   );
@@ -201,5 +211,5 @@ export function normalizeInsights(raw, transcript = []) {
     didWellBlock(raw),
   ];
 
-  return { styles, styleNotes, blocks };
+  return { styles, styleNotes, blocks, issueSummary };
 }

@@ -30,6 +30,7 @@ const ANALYSIS_SCHEMA = `{
   "defensive": null | {"quote": "...", "why": "...", "instead": "..."},
   "stonewalling": null | {"quote": "...", "why": "...", "instead": "..."},
   "conversation_good": <true if NONE of the four horsemen apply to the user, else false>,
+  "issue_summary": "<one sentence summarising what the user is trying to resolve in this rehearsal>",
   "did_well": {
     "instances": [
       {"quote": "<exact words the user said>", "why": "<why this moment was positive>"},
@@ -111,7 +112,7 @@ function mockDidWellInstances(myTurns) {
   };
 }
 
-function mockAnalyse(transcript) {
+function mockAnalyse(transcript, situation = '') {
   const myTurns = transcript.filter((m) => m.role === 'me');
   const text = myTurns.map((m) => m.content.toLowerCase()).join(' ');
   const hedges = (text.match(/\b(sorry|just|maybe|kind of|i guess|no rush|it's fine)\b/g) || [])
@@ -135,7 +136,8 @@ function mockAnalyse(transcript) {
         conversation_good: true,
         did_well: mockDidWellInstances(myTurns),
       },
-      transcript
+      transcript,
+      situation
     );
   }
 
@@ -160,11 +162,11 @@ function mockAnalyse(transcript) {
       instead: 'State one clear request without apologising for having it.',
     };
   }
-  return normalizeInsights(raw, transcript);
+  return normalizeInsights(raw, transcript, situation);
 }
 
 export async function analyse(person, situation, transcript) {
-  if (!API_KEY) return mockAnalyse(transcript);
+  if (!API_KEY) return mockAnalyse(transcript, situation);
 
   const system =
     `You are a communication coach analysing a rehearsal transcript (Gottman + assertiveness). ` +
@@ -184,6 +186,7 @@ export async function analyse(person, situation, transcript) {
     `If TWO or more horsemen apply, return each of them. ` +
     `If ONE horseman applies but a second is borderline, include both horseman blocks. ` +
     `If any horseman is present, conversation_good must be false. ` +
+    `issue_summary must be one clear sentence about what the user is trying to work through (from the situation and transcript). ` +
     `Return ONLY JSON, no markdown, matching this schema:\n${ANALYSIS_SCHEMA}`;
 
   const convoText = transcript
@@ -192,7 +195,7 @@ export async function analyse(person, situation, transcript) {
   const raw = await callGroq(system, [{ role: 'user', content: convoText }], 1400);
   try {
     const parsed = JSON.parse(raw.replace(/```json|```/g, '').trim());
-    return normalizeInsights(parsed, transcript);
+    return normalizeInsights(parsed, transcript, situation);
   } catch {
     return normalizeInsights({
       passive: 25,
@@ -207,6 +210,6 @@ export async function analyse(person, situation, transcript) {
           },
         ],
       },
-    }, transcript);
+    }, transcript, situation);
   }
 }

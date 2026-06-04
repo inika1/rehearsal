@@ -2,8 +2,10 @@
 
 import { useEffect, useRef, useState } from 'react';
 import {
-  assertiveColor, BLOCK_META, resolveInsights, STYLE_METERS, STYLES_INTRO,
+  assertiveColor, BLOCK_META, displayHeadline, displayIssueSummary,
+  resolveInsights, STYLE_METERS, STYLES_INTRO,
 } from './insightsView.js';
+import { StylePieChart } from './StylePieChart.jsx';
 
 const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
@@ -267,33 +269,14 @@ function CallScreen({ person, conversation, messages, setMessages, onEnd }) {
   );
 }
 
-function StyleMeter({ meter, value, note }) {
-  const [w, setW] = useState(0);
-  useEffect(() => { const t = setTimeout(() => setW(value), 60); return () => clearTimeout(t); }, [value]);
-  return (
-    <div className="meter style-meter">
-      <div className="meter-top">
-        <span>{meter.label}</span>
-        <span style={{ color: meter.color, fontWeight: 600 }}>{value}%</span>
-      </div>
-      <p className="style-desc">{meter.description}</p>
-      <div className="track"><div className="fill" style={{ width: w + '%', background: meter.color }} /></div>
-      {(note?.instances || []).map((inst, i) => (
-        <div key={i} className={i > 0 ? 'style-instance' : 'style-instance-first'}>
-          <div className="style-example">From your call: “{inst.quote}”</div>
-          {inst.why && <div className="style-reason">{inst.why}</div>}
-        </div>
-      ))}
-    </div>
-  );
-}
-
 function InsightsScreen({ conv, onHome, onTranscript }) {
   const { styles, blocks, styleNotes } = resolveInsights(conv);
+  const summary = displayIssueSummary(conv);
   return (
     <div className="scr">
       <div className="topbar"><div className="iconbtn" onClick={onHome}>⌂</div></div>
-      <div className="conv-ttl">{conv.title}</div>
+      <div className="conv-ttl">{displayHeadline(conv)}</div>
+      {summary && <p className="conv-summary">{summary}</p>}
       <div className="conv-meta">with {conv.person_name || ''} · {conv.duration} · {conv.created_at?.slice(0, 10)}</div>
       <div className="ins-scroll">
         <p className="styles-intro">{STYLES_INTRO}</p>
@@ -305,14 +288,7 @@ function InsightsScreen({ conv, onHome, onTranscript }) {
         >
           Communication styles guide (SCCR) ↗
         </a>
-        {STYLE_METERS.map((m) => (
-          <StyleMeter
-            key={m.key}
-            meter={m}
-            value={styles[m.key]}
-            note={styleNotes[m.key]}
-          />
-        ))}
+        <StylePieChart styles={styles} styleNotes={styleNotes} meters={STYLE_METERS} />
         <div className="label">Insights</div>
         {blocks.map((block, i) => (
           <InsightBlock key={i} block={block} />

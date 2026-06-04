@@ -14,8 +14,10 @@ import {
   View,
 } from 'react-native';
 import {
-  assertiveColor, BLOCK_META, resolveInsights, STYLE_METERS, STYLES_INTRO,
+  assertiveColor, BLOCK_META, displayHeadline, displayIssueSummary,
+  resolveInsights, STYLE_METERS, STYLES_INTRO,
 } from './shared/insightsView.js';
+import { StylePieChart } from './shared/StylePieChart.js';
 
 // When testing on a physical device, change this to your machine's local IP.
 // e.g. 'http://192.168.1.42:4000'
@@ -422,42 +424,9 @@ function CallScreen({ person, conversation, messages, setMessages, onEnd }) {
   );
 }
 
-function StyleMeter({ meter, value, note }) {
-  const widthAnim = useRef(new Animated.Value(0)).current;
-  useEffect(() => {
-    Animated.timing(widthAnim, {
-      toValue: value,
-      duration: 1000,
-      easing: Easing.out(Easing.ease),
-      useNativeDriver: false,
-    }).start();
-  }, [value]);
-
-  return (
-    <View style={s.styleMeter}>
-      <View style={s.meterTop}>
-        <Text style={s.meterLabel}>{meter.label}</Text>
-        <Text style={[s.meterValue, { color: meter.color }]}>{value}%</Text>
-      </View>
-      <Text style={s.styleDesc}>{meter.description}</Text>
-      <View style={s.track}>
-        <Animated.View style={[s.fill, {
-          width: widthAnim.interpolate({ inputRange: [0, 100], outputRange: ['0%', '100%'] }),
-          backgroundColor: meter.color,
-        }]} />
-      </View>
-      {(note?.instances || []).map((inst, i) => (
-        <View key={i} style={i > 0 ? s.styleInstance : s.styleInstanceFirst}>
-          <Text style={s.styleExample}>From your call: “{inst.quote}”</Text>
-          {inst.why ? <Text style={s.styleReason}>{inst.why}</Text> : null}
-        </View>
-      ))}
-    </View>
-  );
-}
-
 function InsightsScreen({ conv, onHome, onTranscript }) {
   const { styles, blocks, styleNotes } = resolveInsights(conv);
+  const summary = displayIssueSummary(conv);
   return (
     <View style={s.scr}>
       <View style={s.topbar}>
@@ -465,23 +434,17 @@ function InsightsScreen({ conv, onHome, onTranscript }) {
           <Text style={{ color: 'rgba(255,255,255,.6)', fontSize: 16 }}>⌂</Text>
         </TouchableOpacity>
       </View>
-      <Text style={s.convTtl}>{conv.title}</Text>
+      <Text style={s.convTtl}>{displayHeadline(conv)}</Text>
+      {summary ? <Text style={s.convSummary}>{summary}</Text> : null}
       <Text style={s.convMeta}>
         with {conv.person_name || ''} · {conv.duration} · {conv.created_at?.slice(0, 10)}
       </Text>
       <ScrollView style={{ flex: 1 }}>
         <Text style={s.stylesIntro}>{STYLES_INTRO}</Text>
         <Text style={s.stylesRef}>
-          Based on SCCR communication styles (passive, aggressive, passive-aggressive, assertive).
+          Tap a slice or label to see quotes from your call (SCCR communication styles).
         </Text>
-        {STYLE_METERS.map((m) => (
-          <StyleMeter
-            key={m.key}
-            meter={m}
-            value={styles[m.key]}
-            note={styleNotes[m.key]}
-          />
-        ))}
+        <StylePieChart styles={styles} styleNotes={styleNotes} meters={STYLE_METERS} />
         <Text style={s.label}>INSIGHTS</Text>
         {blocks.map((block, i) => (
           <InsightBlock key={i} block={block} />
@@ -692,7 +655,8 @@ const s = StyleSheet.create({
   topbar: { flexDirection: 'row', justifyContent: 'flex-end', paddingHorizontal: 24, paddingTop: 6, paddingBottom: 2 },
   iconbtn: { width: 34, height: 34, borderRadius: 10, backgroundColor: 'rgba(255,255,255,.06)',
     borderWidth: 1, borderColor: 'rgba(255,255,255,.1)', alignItems: 'center', justifyContent: 'center' },
-  convTtl: { fontSize: 21, fontWeight: '600', color: '#f0e6d3', paddingHorizontal: 24, paddingTop: 10, paddingBottom: 2 },
+  convTtl: { fontSize: 21, fontWeight: '600', color: '#f0e6d3', paddingHorizontal: 24, paddingTop: 10, paddingBottom: 4 },
+  convSummary: { fontSize: 13, lineHeight: 19, color: 'rgba(255,255,255,.55)', paddingHorizontal: 24, paddingBottom: 6 },
   convMeta: { fontSize: 12, color: 'rgba(255,255,255,.35)', paddingHorizontal: 24, paddingBottom: 14 },
   meter: { marginHorizontal: 24, marginBottom: 16 },
   styleMeter: { marginHorizontal: 24, marginBottom: 20, paddingBottom: 12, borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,.06)' },

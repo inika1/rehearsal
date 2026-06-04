@@ -23,6 +23,7 @@ create table if not exists conversations (
   passive_aggressive integer,
   assertive    integer,
   insights     jsonb,
+  issue_summary text,
   created_at   timestamptz default now()
 );
 
