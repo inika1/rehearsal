@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import {
   assertiveColor, BLOCK_META, resolveInsights, STYLE_METERS, STYLES_INTRO,
-} from '../../shared/insightsView.js';
+} from './insightsView.js';
 
 const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
