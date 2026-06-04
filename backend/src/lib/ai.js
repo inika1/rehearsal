@@ -1,7 +1,7 @@
 import { DEFAULT_GOOD_MESSAGE, normalizeInsights } from './insights.js';
 
-const API_KEY = process.env.GEMINI_API_KEY;
-const MODEL = 'gemini-2.0-flash';
+const API_KEY = process.env.GROQ_API_KEY;
+const MODEL = 'llama-3.3-70b-versatile';
 
 // Research-backed guiding questions based on Gottman's Four Horsemen framework
 // (complaint not criticism, feelings not blame) and assertive communication
@@ -36,26 +36,22 @@ const ANALYSIS_SCHEMA = `{
   "good_message": "<only when conversation_good is true: short encouraging message>"
 }`;
 
-async function callGemini(system, messages, maxTokens = 400) {
-  const contents = messages.map((m) => ({
-    role: m.role === 'user' ? 'user' : 'model',
-    parts: [{ text: m.content }],
-  }));
-  const res = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent?key=${API_KEY}`,
-    {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({
-        system_instruction: { parts: [{ text: system }] },
-        contents,
-        generationConfig: { maxOutputTokens: maxTokens },
-      }),
-    }
-  );
-  if (!res.ok) throw new Error('Gemini API error: ' + res.status);
+async function callGroq(system, messages, maxTokens = 400) {
+  const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+    method: 'POST',
+    headers: {
+      'content-type': 'application/json',
+      'authorization': `Bearer ${API_KEY}`,
+    },
+    body: JSON.stringify({
+      model: MODEL,
+      messages: [{ role: 'system', content: system }, ...messages],
+      max_tokens: maxTokens,
+    }),
+  });
+  if (!res.ok) throw new Error('Groq API error: ' + res.status);
   const data = await res.json();
-  return data.candidates[0].content.parts[0].text;
+  return data.choices[0].message.content;
 }
 
 export async function replyAs(person, situation, history) {
@@ -81,7 +77,7 @@ export async function replyAs(person, situation, history) {
     content: m.content,
   }));
 
-  return callGemini(system, messages, 200);
+  return callGroq(system, messages, 200);
 }
 
 function mockAnalyse(transcript) {
@@ -153,7 +149,7 @@ export async function analyse(person, situation, transcript) {
   const convoText = transcript
     .map((m) => `${m.role === 'me' ? 'User' : person.name}: ${m.content}`)
     .join('\n');
-  const raw = await callGemini(system, [{ role: 'user', content: convoText }], 900);
+  const raw = await callGroq(system, [{ role: 'user', content: convoText }], 900);
   try {
     const parsed = JSON.parse(raw.replace(/```json|```/g, '').trim());
     return normalizeInsights(parsed);
