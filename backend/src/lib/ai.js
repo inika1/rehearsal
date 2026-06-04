@@ -3,24 +3,15 @@ import { DEFAULT_GOOD_MESSAGE, normalizeInsights } from './insights.js';
 const API_KEY = process.env.GROQ_API_KEY;
 const MODEL = 'llama-3.3-70b-versatile';
 
-// Research-backed guiding questions based on Gottman's Four Horsemen framework
-// (complaint not criticism, feelings not blame) and assertive communication
-// (I-statements: feel → cause → why → preference).
+// Coaching questions that walk the user through Gottman + assertive communication prep
 const GUIDED_QUESTIONS = [
-  // Opening: invite the user to name the issue
-  `What was it you wanted to talk about? I'm listening.`,
-  // Feelings: prompt an I-statement rather than blame
-  `How has this been making you feel? Try to name the emotion itself.`,
-  // Specific behavior: steer away from character attacks toward a concrete moment
-  `Can you point to a specific moment or thing that happened — not who I am, just what was done?`,
-  // Impact: connect the behavior to a real effect
-  `What impact did that have on you? How did it affect you personally?`,
-  // Needs: get the user to state what they actually want (assertive communication)
-  `What do you need from me going forward? What would feel better?`,
-  // Desired outcome: move toward resolution
-  `What would a good outcome from this conversation look like for you?`,
-  // Final understanding: ensure nothing important is left unsaid
-  `Is there anything else you need me to understand before we figure out a way forward?`,
+  `Let's start simple — what do you actually want to say to ${'{name}'}? Just say it out loud, don't filter it yet.`,
+  `What are you feeling about this situation? Try to name the emotion — not what they did, just how you feel.`,
+  `Can you point to one specific thing that happened — a moment or action — rather than a general pattern?`,
+  `What impact did that have on you personally? How did it affect you?`,
+  `What do you actually need from them? What would feel better going forward?`,
+  `What would a good outcome look like — what are you hoping changes after this conversation?`,
+  `Let's put it together as an I-statement: "I feel [emotion] when [specific thing], because [impact]. I'd like [need]." Try it.`,
 ];
 
 const ANALYSIS_SCHEMA = `{
@@ -60,17 +51,15 @@ export async function replyAs(person, situation, history) {
     return GUIDED_QUESTIONS[Math.max(0, idx)];
   }
 
-  const guidingPrompts = GUIDED_QUESTIONS.map((q) => `"${q}"`).join('; ');
   const system =
-    `You are roleplaying as ${person.name}, the other person in a difficult conversation. ` +
-    `Your relationship to the user: ${person.relationship || 'unspecified'}. ` +
-    `The user is practising: "${situation}". ` +
-    `Stay in character as ${person.name}. Be realistic — react naturally, don't be a pushover, ` +
-    `but don't be cartoonishly hostile. Keep replies short (1-3 sentences), like real speech. ` +
-    `Use communication research to guide the conversation: when the user is vague, blaming, or stuck, ` +
-    `ask an open question that helps them express feelings (not blame), name a specific behavior ` +
-    `(not a character attack), or state a clear need. Draw from these guiding prompts as the ` +
-    `conversation develops: ${guidingPrompts}`;
+    `You are a conversation coach helping someone prepare to talk to ${person.name} ` +
+    `(their ${person.relationship || 'contact'}) about: "${situation}". ` +
+    `Your only job is to help them get clear on what they want to say — not to roleplay as ${person.name}, ` +
+    `not to judge their words. Just ask questions that help them articulate their feelings, ` +
+    `name the specific thing that happened, understand the impact it had on them, and figure out what they need. ` +
+    `Work through it step by step: feelings first, then the specific behavior or moment, then the impact, ` +
+    `then what they actually want. Once they have all of that, help them put it into one clear thing they can say. ` +
+    `Ask one question at a time. Keep replies short — 1-2 sentences.`;
 
   const messages = history.map((m) => ({
     role: m.role === 'me' ? 'user' : 'assistant',

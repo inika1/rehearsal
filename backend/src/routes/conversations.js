@@ -25,15 +25,17 @@ router.post('/', async (req, res) => {
   const { person_id, title, situation } = req.body;
   if (!person_id || !title)
     return res.status(400).json({ error: 'person_id and title required' });
+  const { data: personData } = await supabase.from('people').select('name').eq('id', person_id).single();
+  const personName = personData?.name || 'them';
+
   const { data, error } = await supabase
     .from('conversations')
     .insert({ person_id, title, situation: situation || '' })
     .select()
     .single();
   if (error) return res.status(500).json({ error: error.message });
-  
-  // Auto-insert the first AI message (first pre-set question)
-  const firstQuestion = `Hey! What's up, what's going on?`;
+
+  const firstQuestion = `Let's prep you for this conversation. What do you want to say to ${personName} — just say it out loud, don't filter it yet.`;
   await supabase
     .from('messages')
     .insert({ conversation_id: data.id, role: 'them', content: firstQuestion });
