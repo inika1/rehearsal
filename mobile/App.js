@@ -278,11 +278,29 @@ function CallScreen({ person, conversation, messages, setMessages, onEnd }) {
       if (!window.speechSynthesis) { resolve(); return; }
       window.speechSynthesis.cancel();
       const u = new SpeechSynthesisUtterance(text);
-      u.onend = resolve;
-      u.onerror = resolve;
-      window.speechSynthesis.speak(u);
+      u.pitch = 1.05;
+      const pickVoice = () => {
+        const voices = window.speechSynthesis.getVoices();
+        u.voice =
+          voices.find((v) => v.name === 'Samantha') ||
+          voices.find((v) => v.name.includes('Google UK English Female')) ||
+          voices.find((v) => v.lang === 'en-GB') ||
+          voices.find((v) => v.lang.startsWith('en')) ||
+          null;
+        u.onend = resolve;
+        u.onerror = resolve;
+        window.speechSynthesis.speak(u);
+      };
+      if (window.speechSynthesis.getVoices().length) pickVoice();
+      else window.speechSynthesis.addEventListener('voiceschanged', pickVoice, { once: true });
     } else {
-      Speech.speak(text, { onDone: resolve, onStopped: resolve, onError: resolve });
+      Speech.speak(text, {
+        voice: 'com.apple.voice.compact.en-US.Samantha',
+        pitch: 1.05,
+        onDone: resolve,
+        onStopped: resolve,
+        onError: resolve,
+      });
     }
   });
 
