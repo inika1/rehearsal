@@ -298,13 +298,13 @@ function CallScreen({ person, conversation, messages, setMessages, onEnd }) {
       if (window.speechSynthesis.getVoices().length) pickVoice();
       else window.speechSynthesis.addEventListener('voiceschanged', pickVoice, { once: true });
     } else {
+      const timeout = setTimeout(resolve, 15000);
       Speech.speak(text, {
-        voice: 'com.apple.voice.compact.en-US.Samantha',
         pitch: 1.05,
         rate: 1.2,
-        onDone: resolve,
-        onStopped: resolve,
-        onError: resolve,
+        onDone: () => { clearTimeout(timeout); resolve(); },
+        onStopped: () => { clearTimeout(timeout); resolve(); },
+        onError: () => { clearTimeout(timeout); resolve(); },
       });
     }
   });
@@ -323,12 +323,9 @@ function CallScreen({ person, conversation, messages, setMessages, onEnd }) {
       rec.onresult = (e) => {
         const text = Array.from(e.results).map((r) => r[0].transcript).join('');
         setInput(text);
-        clearTimeout(silenceTimer.current);
-        silenceTimer.current = setTimeout(() => {
-          if (text.trim()) sendRef.current(text.trim());
-        }, 1500);
+        if (e.results[e.results.length - 1].isFinal && text.trim()) sendRef.current(text.trim());
       };
-      rec.onend = () => { clearTimeout(silenceTimer.current); setListening(false); };
+      rec.onend = () => setListening(false);
       rec.onerror = () => setListening(false);
       webRecognition.current = rec;
       rec.start();
