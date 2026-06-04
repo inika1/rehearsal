@@ -3,6 +3,26 @@ import { DEFAULT_GOOD_MESSAGE, normalizeInsights } from './insights.js';
 const API_KEY = process.env.GEMINI_API_KEY;
 const MODEL = 'gemini-2.0-flash';
 
+// Research-backed guiding questions based on Gottman's Four Horsemen framework
+// (complaint not criticism, feelings not blame) and assertive communication
+// (I-statements: feel → cause → why → preference).
+const GUIDED_QUESTIONS = [
+  // Opening: invite the user to name the issue
+  `What was it you wanted to talk about? I'm listening.`,
+  // Feelings: prompt an I-statement rather than blame
+  `How has this been making you feel? Try to name the emotion itself.`,
+  // Specific behavior: steer away from character attacks toward a concrete moment
+  `Can you point to a specific moment or thing that happened — not who I am, just what was done?`,
+  // Impact: connect the behavior to a real effect
+  `What impact did that have on you? How did it affect you personally?`,
+  // Needs: get the user to state what they actually want (assertive communication)
+  `What do you need from me going forward? What would feel better?`,
+  // Desired outcome: move toward resolution
+  `What would a good outcome from this conversation look like for you?`,
+  // Final understanding: ensure nothing important is left unsaid
+  `Is there anything else you need me to understand before we figure out a way forward?`,
+];
+
 const ANALYSIS_SCHEMA = `{
   "passive": <0-100 int>,
   "aggressive": <0-100 int>,
@@ -40,27 +60,21 @@ async function callGemini(system, messages, maxTokens = 400) {
 
 export async function replyAs(person, situation, history) {
   if (!API_KEY) {
-    const canned = [
-      `Ah, has this been going on for a while or is this a recent thing?`,
-      `Hmm, so what emotions are you feeling most strongly right now?`,
-      `Right. So what's bothering you most about this situation?`,
-      `Yeah, I can see why that would get under your skin. Ideally, what would you like to happen now?`,
-      `Fair enough. If I asked them what's been happening, what do you think they'd say?`,
-      `Got it. So what's stopping you from bringing it up with them?`,
-      `Okay perfect. I see where you are coming from. Here is what I think, end the call to find out`,
-    ];
-    return (
-      canned[Math.min(history.filter((m) => m.role === 'me').length - 1, canned.length - 1)] ||
-      canned[0]
-    );
+    const idx = Math.min(history.filter((m) => m.role === 'me').length - 1, GUIDED_QUESTIONS.length - 1);
+    return GUIDED_QUESTIONS[Math.max(0, idx)];
   }
 
+  const guidingPrompts = GUIDED_QUESTIONS.map((q) => `"${q}"`).join('; ');
   const system =
     `You are roleplaying as ${person.name}, the other person in a difficult conversation. ` +
     `Your relationship to the user: ${person.relationship || 'unspecified'}. ` +
-    `The user is practising this conversation: "${situation}". ` +
-    `Stay fully in character as ${person.name}. Be realistic — react naturally, don't be a pushover, ` +
-    `but don't be cartoonishly hostile. Keep replies short (1-3 sentences), like real speech.`;
+    `The user is practising: "${situation}". ` +
+    `Stay in character as ${person.name}. Be realistic — react naturally, don't be a pushover, ` +
+    `but don't be cartoonishly hostile. Keep replies short (1-3 sentences), like real speech. ` +
+    `Use communication research to guide the conversation: when the user is vague, blaming, or stuck, ` +
+    `ask an open question that helps them express feelings (not blame), name a specific behavior ` +
+    `(not a character attack), or state a clear need. Draw from these guiding prompts as the ` +
+    `conversation develops: ${guidingPrompts}`;
 
   const messages = history.map((m) => ({
     role: m.role === 'me' ? 'user' : 'assistant',
