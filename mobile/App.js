@@ -90,8 +90,9 @@ export default function App() {
   const startCall = async () => {
     const title = situation.split(' ').slice(0, 3).join(' ') || 'Untitled';
     const conv = await api.startConversation(person.id, title, situation);
-    setConversation(conv);
-    setMessages(conv.messages || []);
+    const fullConv = await api.getConversation(conv.id);
+    setConversation(fullConv);
+    setMessages(fullConv.messages || []);
     setScreen('call');
   };
 
@@ -322,9 +323,8 @@ function CallScreen({ person, conversation, messages, setMessages, onEnd }) {
       done = data?.done || false;
     } catch (_) {}
     if (!reply) reply = "Go on — tell me more.";
-    const speakPromise = speakCoachText(reply, { audioBase64: data?.audio });
     setMessages((m) => [...m, { role: 'them', content: reply }]);
-    await speakPromise;
+    await speakCoachText(reply);
     busyRef.current = false;
     setBusy(false);
     if (done) {
