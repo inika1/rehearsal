@@ -8,7 +8,6 @@ const PITCH = 0.98;
 let speechApiUrl = null;
 let activeSound = null;
 let nativeVoiceId = null;
-let audioModeReady = false;
 
 const VOICE_PATTERNS = [/enhanced/i, /premium/i, /neural/i, /samantha/i, /karen/i, /serena/i];
 
@@ -18,7 +17,6 @@ export function configureCoachSpeech(apiUrl) {
 }
 
 async function ensureAudioMode() {
-  if (audioModeReady) return;
   await Audio.setAudioModeAsync({
     playsInSilentModeIOS: true,
     allowsRecordingIOS: true,
@@ -26,7 +24,6 @@ async function ensureAudioMode() {
     shouldDuckAndroid: true,
     playThroughEarpieceAndroid: false,
   });
-  audioModeReady = true;
 }
 
 export async function stopCoachSpeech() {
@@ -74,33 +71,48 @@ async function playMp3Base64(base64) {
   await stopCoachSpeech();
   await ensureAudioMode();
   const uri = `data:audio/mpeg;base64,${base64}`;
-  const { sound } = await Audio.Sound.createAsync(
-    { uri },
-    { shouldPlay: true, volume: 1 },
-  );
-  activeSound = sound;
-  return new Promise((resolve) => {
-    sound.setOnPlaybackStatusUpdate((status) => {
-      if (status.isLoaded && status.didJustFinish) {
-        sound.unloadAsync().catch(() => {});
-        if (activeSound === sound) activeSound = null;
-        resolve();
-      }
+  try {
+    const { sound } = await Audio.Sound.createAsync(
+      { uri },
+      { shouldPlay: true, volume: 1 },
+    );
+    activeSound = sound;
+    await new Promise((resolve) => {
+      const fallback = setTimeout(resolve, 30000);
+      sound.setOnPlaybackStatusUpdate((status) => {
+        if ((status.isLoaded && status.didJustFinish) || status.error) {
+          clearTimeout(fallback);
+          sound.unloadAsync().catch(() => {});
+          if (activeSound === sound) activeSound = null;
+          resolve();
+        }
+      });
     });
-  });
+  } catch {
+    /* fall through to system voice */
+  }
 }
 
 async function fetchNeuralSpeech(text) {
   if (!speechApiUrl) return null;
-  const res = await fetch(`${speechApiUrl}/api/speech/coach`, {
-    method: 'POST',
-    headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ text }),
-  });
-  if (!res.ok) return null;
-  const buf = await res.arrayBuffer();
-  if (!buf?.byteLength) return null;
-  return arrayBufferToBase64(buf);
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 5000);
+  try {
+    const res = await fetch(`${speechApiUrl}/api/speech/coach`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ text }),
+      signal: controller.signal,
+    });
+    clearTimeout(timeout);
+    if (!res.ok) return null;
+    const buf = await res.arrayBuffer();
+    if (!buf?.byteLength) return null;
+    return arrayBufferToBase64(buf);
+  } catch {
+    clearTimeout(timeout);
+    return null;
+  }
 }
 
 async function pickNativeVoiceId() {
