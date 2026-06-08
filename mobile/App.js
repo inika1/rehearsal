@@ -446,11 +446,9 @@ const HORSEMAN_INTRO = {
 };
 
 function InsightsScreen({ conv, onHome, onTranscript }) {
-  const { styles, horseman, didWell, legacy } = resolveInsights(conv);
+  const { styles, horseman, didWell } = resolveInsights(conv);
   const summary = displayIssueSummary(conv);
-  const didWell = blocks.find(b => b.type === 'did_well' || b.type === 'went_well');
-  const horsemen = blocks.filter(b => !['did_well', 'went_well', 'legacy', 'good'].includes(b.type));
-  const isGood = horsemen.length === 0;
+  const isGood = !horseman || horseman.length === 0;
   const dominant = STYLE_METERS.reduce((a, m) => styles[m.key] > styles[a.key] ? m : a, STYLE_METERS[0]);
 
   return (
@@ -468,7 +466,7 @@ function InsightsScreen({ conv, onHome, onTranscript }) {
       <Text style={s.convMeta}>{'with ' + (conv.person_name || '') + ' · ' + conv.duration}</Text>
       <ScrollView style={{ flex: 1 }}>
         {didWell && <DidWellSection block={didWell} />}
-        {horsemen.map((b, i) => <WatchOutSection key={i} block={b} />)}
+        {(horseman || []).map((b, i) => <WatchOutSection key={i} block={b} />)}
         <StyleNoteSection meter={dominant} value={styles[dominant.key]} />
         <TouchableOpacity onPress={onTranscript} style={s.viewTx}>
           <Text style={s.viewTxTx}>See full transcript</Text>
