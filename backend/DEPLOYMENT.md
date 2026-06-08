@@ -11,7 +11,7 @@ Set these in Railway's dashboard under Variables:
 - **SUPABASE_URL**: Your Supabase project URL
 - **SUPABASE_SERVICE_ROLE_KEY**: Your Supabase service role key (server-side only)
 - **ANTHROPIC_API_KEY**: (Optional) Your Anthropic API key for AI features
-- **FRONTEND_ORIGIN**: Your deployed frontend URL (e.g., `https://rehearsal.vercel.app`)
+- **FRONTEND_ORIGIN**: Your deployed frontend URL (e.g., `https://bridge.vercel.app`)
 - **NODE_ENV**: `production`
 
 ## Deployment Steps

@@ -1,8 +1,9 @@
 // Style definitions adapted from SCCR:
 // https://www.scottishconflictresolution.org.uk/learning-zone-communication-styles
 
-export const STYLES_INTRO =
-  'How your messages in this rehearsal blended four communication styles. Most people mix styles across a conversation.';
+export const STYLES_INTRO = 'Your communication style mix this session (tap a slice for examples).';
+
+export const HORSEMAN_TYPES = new Set(['critical', 'contemptuous', 'defensive', 'stonewalling']);
 
 export const STYLE_METERS = [
   {
@@ -48,11 +49,40 @@ const DEFAULT_DID_WELL = {
   type: 'did_well',
   instances: [
     {
-      quote: 'Your effort in this rehearsal',
-      why: 'You showed up and practised having a difficult conversation, which is a real step forward.',
+      quote: 'Your effort in this session',
+      why: 'You showed up and worked through a difficult conversation, which is a real step forward.',
     },
   ],
 };
+
+function num(v, fallback = 0) {
+  const n = Number(v);
+  return Number.isFinite(n) ? Math.round(Math.max(0, Math.min(100, n))) : fallback;
+}
+
+export function normalizeStyles(raw) {
+  let passive = num(raw.passive, 25);
+  let aggressive = num(raw.aggressive, 25);
+  let passive_aggressive = num(raw.passive_aggressive, 25);
+  let assertive = num(raw.assertive, 25);
+  const sum = passive + aggressive + passive_aggressive + assertive;
+  if (sum === 0) {
+    return { passive: 25, aggressive: 25, passive_aggressive: 25, assertive: 25 };
+  }
+  if (sum !== 100) {
+    passive = Math.round((passive / sum) * 100);
+    aggressive = Math.round((aggressive / sum) * 100);
+    passive_aggressive = Math.round((passive_aggressive / sum) * 100);
+    assertive = 100 - passive - aggressive - passive_aggressive;
+  }
+  return { passive, aggressive, passive_aggressive, assertive };
+}
+
+export function formatQuote(text, max = 140) {
+  const t = (text || '').trim().replace(/\s+/g, ' ');
+  if (!t) return '';
+  return t.length > max ? `${t.slice(0, max - 1)}…` : t;
+}
 
 export function normalizeStyleNote(note) {
   if (!note) return { instances: [] };
@@ -62,8 +92,8 @@ export function normalizeStyleNote(note) {
         .filter((i) => i?.quote)
         .slice(0, 2)
         .map((i) => ({
-          quote: i.quote,
-          why: i.why || i.reason || '',
+          quote: formatQuote(i.quote, 160),
+          why: (i.why || i.reason || '').trim(),
         })),
     };
   }
@@ -72,10 +102,10 @@ export function normalizeStyleNote(note) {
     return {
       instances: [
         {
-          quote,
+          quote: formatQuote(quote, 160),
           why: (note.why || note.reason || '').trim(),
         },
-      ].filter((i) => i.quote),
+      ],
     };
   }
   return { instances: [] };
@@ -83,28 +113,47 @@ export function normalizeStyleNote(note) {
 
 export function normalizeDidWellBlock(block) {
   if (!block || (block.type !== 'did_well' && block.type !== 'went_well')) return block;
+  let instances = [];
   if (Array.isArray(block.instances) && block.instances.length) {
-    return { type: 'did_well', instances: block.instances };
+    instances = block.instances;
+  } else if (block.quote) {
+    instances = [{ quote: block.quote, why: block.why || '' }];
   }
-  if (block.quote) {
-    return {
-      type: 'did_well',
-      instances: [{ quote: block.quote, why: block.why || '' }],
-    };
-  }
-  return DEFAULT_DID_WELL;
+  instances = instances
+    .filter((i) => i?.quote)
+    .slice(0, 2)
+    .map((i) => ({
+      quote: formatQuote(i.quote, 160),
+      why: (i.why || '').trim(),
+    }));
+  if (!instances.length) return DEFAULT_DID_WELL;
+  return { type: 'did_well', instances };
 }
 
-function finalizeBlocks(blocks) {
-  const horseman = blocks.filter(
-    (b) => b.type !== 'good' && b.type !== 'did_well' && b.type !== 'went_well'
+function normalizeHorsemanBlock(block) {
+  if (!block || !HORSEMAN_TYPES.has(block.type)) return null;
+  const quote = (block.quote || '').trim();
+  if (!quote) return null;
+  return {
+    type: block.type,
+    quote: formatQuote(quote, 160),
+    why: (block.why || '').trim(),
+    instead: block.instead ? formatQuote(block.instead, 160) : '',
+  };
+}
+
+export function finalizeBlocks(blocks) {
+  const horseman = blocks
+    .map(normalizeHorsemanBlock)
+    .filter(Boolean)
+    .slice(0, 3);
+  const didWell = normalizeDidWellBlock(
+    blocks.find((b) => b.type === 'did_well' || b.type === 'went_well')
   );
-  let didWell = blocks.find((b) => b.type === 'did_well' || b.type === 'went_well');
-  didWell = normalizeDidWellBlock(didWell);
-  return [...horseman, didWell || DEFAULT_DID_WELL];
+  return { horseman, didWell: didWell || DEFAULT_DID_WELL };
 }
 
-export function toShortTitle(text, maxWords = 5) {
+export function toShortTitle(text, maxWords = 6) {
   const words = (text || '')
     .trim()
     .replace(/^["']|["']$/g, '')
@@ -114,30 +163,38 @@ export function toShortTitle(text, maxWords = 5) {
   return words.slice(0, maxWords).join(' ');
 }
 
+function normalizeSummaryText(summary) {
+  return (summary || '')
+    .trim()
+    .replace(/^The user is trying to work through a situation where they /i, "You're ")
+    .replace(/^The user feels /i, 'You feel ')
+    .replace(/^The user /i, 'You ');
+}
+
 export function displayHeadline(conv) {
   const title = (conv.title || '').trim();
   if (title && title.toLowerCase() !== 'untitled') return title;
   const fromInsights = shortTitleFromInsights(conv);
   if (fromInsights) return fromInsights;
+  const summary = normalizeSummaryText(conv.issue_summary);
+  if (summary) return toShortTitle(summary, 6);
   const situation = (conv.situation || '').trim();
-  if (situation) return toShortTitle(situation, 5);
-  const summary = (conv.issue_summary || '').trim();
-  if (summary) return toShortTitle(summary, 5);
-  return 'Rehearsal';
+  if (situation) return toShortTitle(situation, 6);
+  return 'Conversation';
 }
 
 export function displayIssueSummary(conv) {
-  let summary = (conv.issue_summary || '').trim();
+  const headline = displayHeadline(conv);
+  let summary = normalizeSummaryText(conv.issue_summary);
   if (summary) {
-    summary = summary
-      .replace(/^The user is trying to work through a situation where they /i, "You're ")
-      .replace(/^The user feels /i, 'You feel ')
-      .replace(/^The user /i, 'You ');
-    return summary;
+    if (toShortTitle(summary, 6) === headline) return null;
+    return summary.length > 180 ? `${summary.slice(0, 177)}…` : summary;
   }
   const situation = (conv.situation || '').trim();
   if (!situation) return null;
+  if (toShortTitle(situation, 6) === headline) return null;
   const sentence = situation.match(/^[^.!?]+[.!?]?/)?.[0]?.trim() || situation;
+  if (toShortTitle(sentence, 6) === headline) return null;
   return sentence.length > 180 ? `${sentence.slice(0, 177)}…` : sentence;
 }
 
@@ -160,13 +217,12 @@ function parseInsightsField(conv) {
     return {
       blocks: payload.blocks,
       styleNotes: payload.style_notes || null,
-      issueTitle: payload.issue_title || null,
     };
   }
   if (Array.isArray(payload) && payload.length > 0) {
     return { blocks: payload, styleNotes: null };
   }
-  return { blocks: null, styleNotes: null, issueTitle: null };
+  return { blocks: null, styleNotes: null };
 }
 
 function shortTitleFromInsights(conv) {
@@ -183,44 +239,48 @@ function shortTitleFromInsights(conv) {
 }
 
 export function resolveInsights(conv) {
-  const styles = {
-    passive: conv.passive ?? 25,
-    aggressive: conv.aggressive ?? 25,
-    passive_aggressive: conv.passive_aggressive ?? 25,
-    assertive: conv.assertive ?? conv.tension ?? 25,
-  };
+  const styles = normalizeStyles({
+    passive: conv.passive,
+    aggressive: conv.aggressive,
+    passive_aggressive: conv.passive_aggressive,
+    assertive: conv.assertive ?? conv.tension,
+  });
 
   const { blocks: parsedBlocks, styleNotes: parsedNotes } = parseInsightsField(conv);
 
   const styleNotes = {};
   for (const m of STYLE_METERS) {
-    const raw = parsedNotes?.[m.key];
-    styleNotes[m.key] = normalizeStyleNote(raw);
+    styleNotes[m.key] = normalizeStyleNote(parsedNotes?.[m.key]);
   }
 
   if (parsedBlocks) {
-    return { styles, blocks: finalizeBlocks(parsedBlocks), styleNotes };
+    const { horseman, didWell } = finalizeBlocks(parsedBlocks);
+    return { styles, horseman, didWell, styleNotes };
   }
 
   if (conv.insight_tend || conv.insight_try || conv.insight_used) {
-    const legacyStyles = {
-      passive: conv.tension ?? 30,
-      aggressive: 100 - (conv.emotion ?? 50),
-      passive_aggressive: 20,
-      assertive: conv.emotion ?? 50,
-    };
     return {
-      styles: legacyStyles,
-      blocks: finalizeBlocks([
-        { type: 'legacy', tend: conv.insight_tend, try: conv.insight_try, used: conv.insight_used },
-      ]),
+      styles: normalizeStyles({
+        passive: conv.tension ?? 30,
+        aggressive: 100 - (conv.emotion ?? 50),
+        passive_aggressive: 20,
+        assertive: conv.emotion ?? 50,
+      }),
+      horseman: [],
+      didWell: DEFAULT_DID_WELL,
       styleNotes,
+      legacy: {
+        tend: conv.insight_tend,
+        try: conv.insight_try,
+        used: conv.insight_used,
+      },
     };
   }
 
   return {
     styles,
-    blocks: [DEFAULT_DID_WELL],
+    horseman: [],
+    didWell: DEFAULT_DID_WELL,
     styleNotes,
   };
 }

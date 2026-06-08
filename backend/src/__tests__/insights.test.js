@@ -100,14 +100,13 @@ test('normalizeInsights: issueTitle uses AI value when present', () => {
 });
 
 test('normalizeInsights: issueTitle falls back to situation', () => {
-  // toShortTitle uses maxWords=5; "Flatmate leaving dishes in sink" is exactly 5 words
   const { issueTitle } = normalizeInsights({}, [], 'Flatmate leaving dishes in the sink');
-  assert.equal(issueTitle, 'Flatmate leaving dishes in the');
+  assert.equal(issueTitle, 'Flatmate leaving dishes in the sink');
 });
 
-test('normalizeInsights: issueTitle falls back to Rehearsal when nothing provided', () => {
+test('normalizeInsights: issueTitle falls back to Conversation when nothing provided', () => {
   const { issueTitle } = normalizeInsights({});
-  assert.equal(issueTitle, 'Rehearsal');
+  assert.equal(issueTitle, 'Conversation');
 });
 
 test('normalizeInsights: issueSummary strips "The user" prefix', () => {

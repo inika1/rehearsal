@@ -1,4 +1,4 @@
-/* styles — Rehearsal: dark, warm gold + lavender accents. */
+/* styles — Bridge: dark, warm gold + lavender accents. */
 * { box-sizing: border-box; margin: 0; padding: 0; }
 body {
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
@@ -82,12 +82,14 @@ body {
   color: rgba(255,255,255,.6); cursor: pointer; font-size: 16px; }
 .conv-ttl { font-size: 21px; font-weight: 600; color: #f0e6d3; padding: 10px 24px 2px; }
 .conv-summary { font-size: 13px; line-height: 1.45; color: rgba(255,255,255,.55); padding: 0 24px 8px; margin: 0; }
-.conv-meta { font-size: 12px; color: rgba(255,255,255,.35); padding: 0 24px 14px; }
+.conv-meta { font-size: 12px; color: rgba(255,255,255,.35); padding: 0 24px 10px; }
+.section-label { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .06em;
+  color: rgba(255,255,255,.35); padding: 8px 24px 6px; }
 .pie-wrap { margin: 0 24px 8px; }
 .pie-chart-row { position: relative; width: 220px; height: 220px; margin: 0 auto 14px; }
 .pie-center { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; pointer-events: none; }
 .pie-center-pct { font-size: 26px; font-weight: 700; color: #f0e6d3; }
-.pie-center-lbl { font-size: 11px; color: rgba(255,255,255,.45); margin-top: 2px; }
+.pie-center-lbl { font-size: 10px; color: rgba(255,255,255,.45); margin-top: 2px; text-align: center; max-width: 120px; line-height: 1.2; }
 .pie-slice { cursor: pointer; transition: opacity .15s; }
 .pie-slice:hover { opacity: 1 !important; }
 .pie-legend { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
@@ -101,9 +103,7 @@ body {
 .meter { margin: 0 24px 16px; }
 .style-meter { margin-bottom: 20px; padding-bottom: 4px; border-bottom: 1px solid rgba(255,255,255,.06); }
 .style-meter:last-of-type { border-bottom: none; }
-.styles-intro { margin: 0 24px 8px; font-size: 12px; line-height: 1.5; color: rgba(255,255,255,.45); }
-.styles-ref { display: block; margin: 0 24px 16px; font-size: 11px; color: #9b8cf0; text-decoration: none; }
-.styles-ref:hover { text-decoration: underline; }
+.styles-intro { margin: 0 24px 10px; font-size: 12px; line-height: 1.5; color: rgba(255,255,255,.4); }
 .style-desc { margin: 0 0 8px; font-size: 11px; line-height: 1.45; color: rgba(255,255,255,.4); }
 .style-instance-first { margin-top: 8px; }
 .style-instance { margin-top: 10px; padding-top: 10px; border-top: 1px solid rgba(255,255,255,.06); }

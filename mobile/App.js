@@ -234,7 +234,7 @@ function DescribeScreen({ person, situation, setSituation, onStart, onBack, onHi
       <TouchableOpacity onPress={onStart} style={s.callbtn}>
         <Text style={{ fontSize: 28 }}>📞</Text>
       </TouchableOpacity>
-      <Text style={s.calltext}>Tap to start the rehearsal call</Text>
+      <Text style={s.calltext}>Tap to start your coaching session</Text>
       <TouchableOpacity onPress={onHistory} style={s.prev}>
         <Text style={s.prevTx}>↺  Previous conversations</Text>
       </TouchableOpacity>
@@ -440,7 +440,7 @@ function CallScreen({ person, conversation, messages, setMessages, onEnd }) {
 }
 
 function InsightsScreen({ conv, onHome, onTranscript }) {
-  const { styles, blocks, styleNotes } = resolveInsights(conv);
+  const { styles, horseman, didWell, styleNotes, legacy } = resolveInsights(conv);
   const summary = displayIssueSummary(conv);
   return (
     <View style={s.scr}>
@@ -455,15 +455,26 @@ function InsightsScreen({ conv, onHome, onTranscript }) {
         with {conv.person_name || ''} · {conv.duration} · {conv.created_at?.slice(0, 10)}
       </Text>
       <ScrollView style={{ flex: 1 }}>
+        <Text style={s.sectionLabel}>Communication styles</Text>
         <Text style={s.stylesIntro}>{STYLES_INTRO}</Text>
-        <Text style={s.stylesRef}>
-          Tap a slice or label to see quotes from your call (SCCR communication styles).
-        </Text>
         <StylePieChart styles={styles} styleNotes={styleNotes} meters={STYLE_METERS} />
-        <Text style={s.label}>INSIGHTS</Text>
-        {blocks.map((block, i) => (
-          <InsightBlock key={i} block={block} />
-        ))}
+        {legacy && (
+          <>
+            {legacy.tend ? <InsightCard color="#e8a23d" title="You tend to…" body={legacy.tend} /> : null}
+            {legacy.try ? <InsightCard color="#b8a0d4" title="Try to…" body={legacy.try} /> : null}
+            {legacy.used ? <InsightCard color="#9b8cf0" title="You used…" body={legacy.used} /> : null}
+          </>
+        )}
+        {horseman.length > 0 && (
+          <>
+            <Text style={s.sectionLabel}>What to work on</Text>
+            {horseman.map((block, i) => (
+              <HorsemanBlock key={i} block={block} />
+            ))}
+          </>
+        )}
+        <Text style={s.sectionLabel}>What you did well</Text>
+        <DidWellBlock block={didWell} />
         <TouchableOpacity onPress={onTranscript} style={s.viewTx}>
           <Text style={s.viewTxTx}>View full transcript →</Text>
         </TouchableOpacity>
@@ -473,16 +484,9 @@ function InsightsScreen({ conv, onHome, onTranscript }) {
 }
 
 function DidWellBlock({ block }) {
-  const meta = BLOCK_META.did_well;
-  const instances =
-    block.instances ||
-    (block.quote ? [{ quote: block.quote, why: block.why }] : []);
+  const instances = block.instances || [];
   return (
     <View style={s.icard}>
-      <View style={s.icardH}>
-        <View style={[s.dot, { backgroundColor: meta.color }]} />
-        <Text style={[s.icardT, { color: meta.color }]}>{meta.title}</Text>
-      </View>
       {instances.map((inst, i) => (
         <View key={i} style={i > 0 ? s.didWellItem : undefined}>
           <Text style={s.icardQuote}>“{inst.quote}”</Text>
@@ -493,19 +497,7 @@ function DidWellBlock({ block }) {
   );
 }
 
-function InsightBlock({ block }) {
-  if (block.type === 'legacy') {
-    return (
-      <>
-        {block.tend ? <InsightCard color="#e8a23d" title="You tend to…" body={block.tend} /> : null}
-        {block.try ? <InsightCard color="#b8a0d4" title="Try to…" body={block.try} /> : null}
-        {block.used ? <InsightCard color="#9b8cf0" title="You used…" body={block.used} /> : null}
-      </>
-    );
-  }
-  if (block.type === 'did_well' || block.type === 'went_well') {
-    return <DidWellBlock block={block} />;
-  }
+function HorsemanBlock({ block }) {
   const meta = BLOCK_META[block.type] || { title: block.type, color: '#b8a0d4' };
   return (
     <View style={s.icard}>
@@ -559,7 +551,7 @@ function TranscriptScreen({ conv, messages, onBack, onNew }) {
         <Text style={s.ctaTx}>Back to insights</Text>
       </TouchableOpacity>
       <TouchableOpacity onPress={onNew} style={[s.cta, s.ctaGhost]}>
-        <Text style={s.ctaGhostTx}>New rehearsal</Text>
+        <Text style={s.ctaGhostTx}>New conversation</Text>
       </TouchableOpacity>
     </View>
   );
@@ -573,14 +565,14 @@ function HistoryScreen({ history, person, onOpen, onBack }) {
           <Text style={s.back}>‹ Back</Text>
         </TouchableOpacity>
         <Text style={s.ttl}>{person ? `With ${person.name}` : 'Previous conversations'}</Text>
-        <Text style={s.sub}>Your past rehearsals</Text>
+        <Text style={s.sub}>Your past conversations</Text>
       </View>
       <ScrollView style={s.hist}>
         {history.length === 0 && (
           <Text style={s.empty}>
             {person
-              ? `No rehearsals with ${person.name} yet.`
-              : 'No rehearsals yet — finish a call to see it here.'}
+              ? `No conversations with ${person.name} yet.`
+              : 'No conversations yet — finish a session to see it here.'}
           </Text>
         )}
         {history.map((c, i) => (
@@ -673,11 +665,20 @@ const s = StyleSheet.create({
     borderWidth: 1, borderColor: 'rgba(255,255,255,.1)', alignItems: 'center', justifyContent: 'center' },
   convTtl: { fontSize: 21, fontWeight: '600', color: '#f0e6d3', paddingHorizontal: 24, paddingTop: 10, paddingBottom: 4 },
   convSummary: { fontSize: 13, lineHeight: 19, color: 'rgba(255,255,255,.55)', paddingHorizontal: 24, paddingBottom: 6 },
-  convMeta: { fontSize: 12, color: 'rgba(255,255,255,.35)', paddingHorizontal: 24, paddingBottom: 14 },
+  convMeta: { fontSize: 12, color: 'rgba(255,255,255,.35)', paddingHorizontal: 24, paddingBottom: 10 },
+  sectionLabel: {
+    fontSize: 11,
+    fontWeight: '600',
+    textTransform: 'uppercase',
+    letterSpacing: 0.8,
+    color: 'rgba(255,255,255,.35)',
+    paddingHorizontal: 24,
+    marginTop: 8,
+    marginBottom: 6,
+  },
   meter: { marginHorizontal: 24, marginBottom: 16 },
   styleMeter: { marginHorizontal: 24, marginBottom: 20, paddingBottom: 12, borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,.06)' },
-  stylesIntro: { marginHorizontal: 24, marginBottom: 8, fontSize: 12, lineHeight: 18, color: 'rgba(255,255,255,.45)' },
-  stylesRef: { marginHorizontal: 24, marginBottom: 14, fontSize: 11, lineHeight: 16, color: '#9b8cf0' },
+  stylesIntro: { marginHorizontal: 24, marginBottom: 10, fontSize: 12, lineHeight: 18, color: 'rgba(255,255,255,.4)' },
   styleDesc: { fontSize: 11, lineHeight: 16, color: 'rgba(255,255,255,.4)', marginBottom: 8 },
   styleInstanceFirst: { marginTop: 8 },
   styleInstance: { marginTop: 10, paddingTop: 10, borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,.06)' },

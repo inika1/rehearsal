@@ -1,7 +1,7 @@
 {
   "expo": {
-    "name": "mobile",
-    "slug": "mobile",
+    "name": "Bridge",
+    "slug": "bridge",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -11,8 +11,8 @@
       "bundleIdentifier": "com.anshigoyal.mobile",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false,
-        "NSMicrophoneUsageDescription": "Rehearsal uses your microphone to transcribe what you say during practice conversations.",
-        "NSSpeechRecognitionUsageDescription": "Rehearsal transcribes your speech so you can practise difficult conversations hands-free."
+        "NSMicrophoneUsageDescription": "Bridge uses your microphone so your coach can hear you during prep sessions.",
+        "NSSpeechRecognitionUsageDescription": "Bridge transcribes your speech so you can prepare for difficult conversations hands-free."
       }
     },
     "android": {

@@ -78,7 +78,7 @@ export default function App() {
   return (
     <div className="stage">
       <div className="phone"><div className="phone-in">
-        <div className="statusbar"><span>9:41</span><span className="brand">Rehearsal</span><span>●●●</span></div>
+        <div className="statusbar"><span>9:41</span><span className="brand">Bridge</span><span>●●●</span></div>
 
         {screen === 'choose' && (
           <ChooseScreen people={people} onPick={pickPerson} onAdd={addPerson} />
@@ -137,7 +137,7 @@ function DescribeScreen({ person, situation, setSituation, onStart, onBack, onHi
       <div className="callbtn" onClick={onStart}>
         <svg width="32" height="32" viewBox="0 0 24 24" fill="none"><path d="M6.5 3h3l1.5 4.5L9 9.5a12 12 0 005.5 5.5l2-2 4.5 1.5v3a2 2 0 01-2 2A16 16 0 014 5a2 2 0 012-2z" stroke="#0e0e1a" strokeWidth="2" strokeLinejoin="round" /></svg>
       </div>
-      <div className="calltext">Tap to start the rehearsal call</div>
+      <div className="calltext">Tap to start your coaching session</div>
       <div className="prev" onClick={onHistory}>↺ Previous conversations</div>
     </div>
   );
@@ -268,7 +268,7 @@ function CallScreen({ person, conversation, messages, setMessages, onEnd }) {
 }
 
 function InsightsScreen({ conv, onHome, onTranscript }) {
-  const { styles, blocks, styleNotes } = resolveInsights(conv);
+  const { styles, horseman, didWell, styleNotes, legacy } = resolveInsights(conv);
   const summary = displayIssueSummary(conv);
   return (
     <div className="scr">
@@ -277,20 +277,26 @@ function InsightsScreen({ conv, onHome, onTranscript }) {
       {summary && <p className="conv-summary">{summary}</p>}
       <div className="conv-meta">with {conv.person_name || ''} · {conv.duration} · {conv.created_at?.slice(0, 10)}</div>
       <div className="ins-scroll">
+        <div className="section-label">Communication styles</div>
         <p className="styles-intro">{STYLES_INTRO}</p>
-        <a
-          className="styles-ref"
-          href="https://www.scottishconflictresolution.org.uk/learning-zone-communication-styles"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          Communication styles guide (SCCR) ↗
-        </a>
         <StylePieChart styles={styles} styleNotes={styleNotes} meters={STYLE_METERS} />
-        <div className="label">Insights</div>
-        {blocks.map((block, i) => (
-          <InsightBlock key={i} block={block} />
-        ))}
+        {legacy && (
+          <>
+            {legacy.tend && <InsightCard color="#e8a23d" title="You tend to…" body={legacy.tend} />}
+            {legacy.try && <InsightCard color="#b8a0d4" title="Try to…" body={legacy.try} />}
+            {legacy.used && <InsightCard color="#9b8cf0" title="You used…" body={legacy.used} />}
+          </>
+        )}
+        {horseman.length > 0 && (
+          <>
+            <div className="section-label">What to work on</div>
+            {horseman.map((block, i) => (
+              <HorsemanBlock key={i} block={block} />
+            ))}
+          </>
+        )}
+        <div className="section-label">What you did well</div>
+        <DidWellBlock block={didWell} />
         <div className="viewtx" onClick={onTranscript}>View full transcript →</div>
       </div>
     </div>
@@ -298,16 +304,9 @@ function InsightsScreen({ conv, onHome, onTranscript }) {
 }
 
 function DidWellBlock({ block }) {
-  const meta = BLOCK_META.did_well;
-  const instances =
-    block.instances ||
-    (block.quote ? [{ quote: block.quote, why: block.why }] : []);
+  const instances = block.instances || [];
   return (
     <div className="icard">
-      <div className="icard-h">
-        <span className="dot" style={{ background: meta.color }} />
-        <span className="icard-t" style={{ color: meta.color }}>{meta.title}</span>
-      </div>
       {instances.map((inst, i) => (
         <div key={i} className={i > 0 ? 'did-well-item' : undefined}>
           <div className="icard-quote">“{inst.quote}”</div>
@@ -318,19 +317,7 @@ function DidWellBlock({ block }) {
   );
 }
 
-function InsightBlock({ block }) {
-  if (block.type === 'legacy') {
-    return (
-      <>
-        {block.tend && <InsightCard color="#e8a23d" title="You tend to…" body={block.tend} />}
-        {block.try && <InsightCard color="#b8a0d4" title="Try to…" body={block.try} />}
-        {block.used && <InsightCard color="#9b8cf0" title="You used…" body={block.used} />}
-      </>
-    );
-  }
-  if (block.type === 'did_well' || block.type === 'went_well') {
-    return <DidWellBlock block={block} />;
-  }
+function HorsemanBlock({ block }) {
   const meta = BLOCK_META[block.type] || { title: block.type, color: '#b8a0d4' };
   return (
     <div className="icard">
@@ -367,7 +354,7 @@ function TranscriptScreen({ conv, messages, onBack, onNew }) {
         ))}
       </div>
       <button className="cta" onClick={onBack}>Back to insights</button>
-      <button className="cta ghost" onClick={onNew}>New rehearsal</button>
+      <button className="cta ghost" onClick={onNew}>New conversation</button>
     </div>
   );
 }
@@ -377,9 +364,9 @@ function HistoryScreen({ history, person, onOpen, onBack }) {
     <div className="scr">
       <div className="hd"><div className="back" onClick={onBack}>‹ Back</div>
         <div className="ttl" style={{ fontSize: 19 }}>{person ? `With ${person.name}` : 'Previous conversations'}</div>
-        <div className="sub">Your past rehearsals</div></div>
+        <div className="sub">Your past conversations</div></div>
       <div className="hist">
-        {history.length === 0 && <div className="empty">{person ? `No rehearsals with ${person.name} yet.` : 'No rehearsals yet — finish a call to see it here.'}</div>}
+        {history.length === 0 && <div className="empty">{person ? `No conversations with ${person.name} yet.` : 'No conversations yet — finish a session to see it here.'}</div>}
         {history.map((c, i) => (
           <div className="hrow" key={c.id} onClick={() => onOpen(c.id)}>
             <div className="hav" style={{ background: colorFor(i) + '2e', color: colorFor(i) }}>{c.person_name[0]}</div>

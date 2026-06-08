@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import Svg, { G, Path } from 'react-native-svg';
 import { buildStyleSlices, describeSliceArc } from './pieUtils.js';
@@ -8,7 +8,21 @@ const CX = SIZE / 2;
 const CY = SIZE / 2;
 const R = SIZE / 2 - 6;
 
+function dominantStyleKey(styles, meters) {
+  let best = meters[0]?.key;
+  let bestVal = -1;
+  for (const m of meters) {
+    const v = styles[m.key] ?? 0;
+    if (v > bestVal) {
+      bestVal = v;
+      best = m.key;
+    }
+  }
+  return best;
+}
+
 function StyleDetail({ meter, note, pct }) {
+  const instances = note?.instances || [];
   return (
     <View style={ps.detail}>
       <View style={ps.detailHead}>
@@ -17,14 +31,14 @@ function StyleDetail({ meter, note, pct }) {
         <Text style={[ps.detailPct, { color: meter.color }]}>{pct}%</Text>
       </View>
       <Text style={ps.detailDesc}>{meter.description}</Text>
-      {(note?.instances || []).map((inst, i) => (
+      {instances.map((inst, i) => (
         <View key={i} style={i > 0 ? ps.inst : undefined}>
-          <Text style={ps.quote}>From your call: “{inst.quote}”</Text>
+          <Text style={ps.quote}>“{inst.quote}”</Text>
           {inst.why ? <Text style={ps.why}>{inst.why}</Text> : null}
         </View>
       ))}
-      {!(note?.instances || []).length && (
-        <Text style={ps.why}>Tap another slice to compare styles.</Text>
+      {!instances.length && (
+        <Text style={ps.why}>No clear examples for this style in your messages.</Text>
       )}
     </View>
   );
@@ -32,7 +46,17 @@ function StyleDetail({ meter, note, pct }) {
 
 export function StylePieChart({ styles, styleNotes, meters }) {
   const slices = useMemo(() => buildStyleSlices(styles, meters), [styles, meters]);
-  const [selected, setSelected] = useState(slices[0]?.key || meters[0]?.key);
+  const defaultKey = useMemo(() => dominantStyleKey(styles, meters), [styles, meters]);
+  const [selected, setSelected] = useState(defaultKey);
+  const activeMeters = useMemo(
+    () => meters.filter((m) => (styles[m.key] ?? 0) > 0),
+    [meters, styles]
+  );
+
+  useEffect(() => {
+    setSelected(defaultKey);
+  }, [defaultKey]);
+
   const meter = meters.find((m) => m.key === selected) || meters[0];
   const pct = styles[selected] ?? 0;
 
@@ -46,7 +70,7 @@ export function StylePieChart({ styles, styleNotes, meters }) {
                 key={slice.key}
                 d={describeSliceArc(CX, CY, R, slice.startAngle, slice.endAngle)}
                 fill={slice.color}
-                opacity={selected === slice.key ? 1 : 0.78}
+                opacity={selected === slice.key ? 1 : 0.82}
                 onPress={() => setSelected(slice.key)}
               />
             ))}
@@ -54,11 +78,13 @@ export function StylePieChart({ styles, styleNotes, meters }) {
         </Svg>
         <View style={ps.center}>
           <Text style={ps.centerPct}>{pct}%</Text>
-          <Text style={ps.centerLbl}>{meter?.label}</Text>
+          <Text style={ps.centerLbl} numberOfLines={2}>
+            {meter?.label}
+          </Text>
         </View>
       </View>
       <View style={ps.legend}>
-        {meters.map((m) => (
+        {activeMeters.map((m) => (
           <Pressable
             key={m.key}
             onPress={() => setSelected(m.key)}
@@ -76,8 +102,8 @@ export function StylePieChart({ styles, styleNotes, meters }) {
 }
 
 const ps = StyleSheet.create({
-  wrap: { marginHorizontal: 24, marginBottom: 8 },
-  pieRow: { alignSelf: 'center', width: SIZE, height: SIZE, marginBottom: 14 },
+  wrap: { marginHorizontal: 24, marginBottom: 4 },
+  pieRow: { alignSelf: 'center', width: SIZE, height: SIZE, marginBottom: 12 },
   center: {
     position: 'absolute',
     left: 0,
@@ -87,10 +113,11 @@ const ps = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     pointerEvents: 'none',
+    paddingHorizontal: 36,
   },
   centerPct: { fontSize: 26, fontWeight: '700', color: '#f0e6d3' },
-  centerLbl: { fontSize: 11, color: 'rgba(255,255,255,.45)', marginTop: 2, textAlign: 'center' },
-  legend: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 12 },
+  centerLbl: { fontSize: 10, color: 'rgba(255,255,255,.45)', marginTop: 2, textAlign: 'center' },
+  legend: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 10 },
   chip: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -110,7 +137,7 @@ const ps = StyleSheet.create({
     borderColor: 'rgba(255,255,255,.08)',
     borderRadius: 14,
     padding: 13,
-    marginBottom: 16,
+    marginBottom: 12,
   },
   detailHead: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 6 },
   dot: { width: 8, height: 8, borderRadius: 4 },
