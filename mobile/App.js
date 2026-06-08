@@ -474,10 +474,9 @@ const HORSEMAN_INTRO = {
 };
 
 function InsightsScreen({ conv, onHome, onTranscript }) {
-  const { styles, blocks } = resolveInsights(conv);
+  const { styles, horseman, didWell } = resolveInsights(conv);
   const summary = displayIssueSummary(conv);
-  const didWell = blocks.find(b => b.type === 'did_well' || b.type === 'went_well');
-  const horsemen = blocks.filter(b => !['did_well', 'went_well', 'legacy', 'good'].includes(b.type));
+  const horsemen = horseman || [];
   const isGood = horsemen.length === 0;
   const dominant = STYLE_METERS.reduce((a, m) => styles[m.key] > styles[a.key] ? m : a, STYLE_METERS[0]);
 
