@@ -220,19 +220,6 @@ export async function analyse(person, situation, transcript) {
     const parsed = JSON.parse(raw.replace(/```json|```/g, '').trim());
     return normalizeInsights(parsed, transcript, situation);
   } catch {
-    return normalizeInsights({
-      passive: 25,
-      aggressive: 25,
-      passive_aggressive: 25,
-      assertive: 25,
-      did_well: {
-        instances: [
-          {
-            quote: 'Your messages in this session',
-            why: 'You stayed constructive overall and are building readiness for the real conversation.',
-          },
-        ],
-      },
-    }, transcript, situation);
+    return mockAnalyse(transcript, situation);
   }
 }

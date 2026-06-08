@@ -8,6 +8,9 @@ const STYLE_MATCHERS = {
   assertive: /\b(i feel|i felt|i need|i'd like|i would like|when you|because)\b/i,
 };
 
+const GENERIC_DID_WELL_RE =
+  /\b(your messages|your effort|this session|this rehearsal|stayed constructive overall|building readiness)\b/i;
+
 const LOW_STYLE_WHY = {
   passive: (q) => `Saying “${truncate(q)}” is direct—you state your point without backing away.`,
   aggressive: (q) => `“${truncate(q)}” focuses on your experience rather than attacking them.`,
@@ -25,6 +28,22 @@ const HIGH_STYLE_WHY = {
 function truncate(s, n = 48) {
   const t = (s || '').trim();
   return t.length > n ? `${t.slice(0, n)}…` : t;
+}
+
+function userTurns(transcript = []) {
+  return transcript
+    .filter((m) => m.role === 'me' && m.content?.trim())
+    .map((m) => ({ ...m, content: m.content.trim().replace(/\s+/g, ' ') }));
+}
+
+function pickBestUserQuote(transcript = []) {
+  const turns = userTurns(transcript);
+  if (!turns.length) return '';
+  const assertive =
+    turns.find((m) => STYLE_MATCHERS.assertive.test(m.content)) ||
+    turns.find((m) => /\b(feel|need|want|hurt|frustrated|upset|because|when)\b/i.test(m.content));
+  const picked = assertive || turns.reduce((best, m) => (m.content.length > best.content.length ? m : best), turns[0]);
+  return truncate(picked.content, 130);
 }
 
 /** Rewrite third-person "the user…" copy into second person for the insights UI. */
@@ -204,19 +223,57 @@ function pickDidWell(raw) {
   if (!b || typeof b !== 'object') return null;
 
   if (Array.isArray(b.instances)) {
-    const instances = b.instances.map(pickDidWellInstance).filter(Boolean);
+    const instances = b.instances
+      .map(pickDidWellInstance)
+      .filter((i) => i && !GENERIC_DID_WELL_RE.test(`${i.quote} ${i.why}`));
     if (instances.length) return { instances };
   }
 
   const single = pickDidWellInstance(b);
-  if (single) return { instances: [single] };
+  if (single && !GENERIC_DID_WELL_RE.test(`${single.quote} ${single.why}`)) {
+    return { instances: [single] };
+  }
   return null;
 }
 
-function didWellBlock(raw) {
+function transcriptDidWell(transcript = []) {
+  const turns = userTurns(transcript);
+  if (!turns.length) return null;
+  const scored = turns
+    .map((m, index) => {
+      let score = 0;
+      if (/\bi feel\b|\bi felt\b/i.test(m.content)) score += 4;
+      if (/\bi need\b|\bi want\b|\bi'd like\b|\bi would like\b/i.test(m.content)) score += 4;
+      if (/\bwhen you\b|\bbecause\b|\bit affected\b|\bit makes me\b/i.test(m.content)) score += 3;
+      if (!STYLE_MATCHERS.aggressive.test(m.content)) score += 1;
+      if (m.content.length > 35) score += 1;
+      return { ...m, index, score };
+    })
+    .sort((a, b) => b.score - a.score || a.index - b.index);
+  const picked = scored.slice(0, 2);
+  return {
+    instances: picked.map((m) => {
+      let why = 'You gave the conversation something concrete to work with.';
+      if (/\bi feel\b|\bi felt\b/i.test(m.content)) {
+        why = 'You named your feeling instead of only describing what the other person did.';
+      } else if (/\bi need\b|\bi want\b|\bi'd like\b|\bi would like\b/i.test(m.content)) {
+        why = 'You moved toward a clear request, which makes the real conversation easier to act on.';
+      } else if (/\bwhen you\b|\bbecause\b/i.test(m.content)) {
+        why = 'You connected the issue to a specific moment or impact.';
+      }
+      return { quote: truncate(m.content, 160), why };
+    }),
+  };
+}
+
+function didWellBlock(raw, transcript = []) {
   const picked = pickDidWell(raw);
   if (picked) {
     return { type: 'did_well', ...picked };
+  }
+  const fromTranscript = transcriptDidWell(transcript);
+  if (fromTranscript) {
+    return { type: 'did_well', ...fromTranscript };
   }
   return {
     type: 'did_well',
@@ -239,19 +296,25 @@ export function toShortTitle(text, maxWords = 5) {
   return words.slice(0, maxWords).join(' ');
 }
 
-function pickIssueTitle(raw, situation) {
+function pickIssueTitle(raw, situation, transcript = []) {
   const fromAi = (raw.issue_title || '').trim();
   if (fromAi) return toShortTitle(fromAi, 6);
   const sit = (situation || '').trim();
   if (sit) return toShortTitle(sit, 6);
+  const quote = pickBestUserQuote(transcript);
+  if (quote) return toShortTitle(quote, 6);
   return 'Conversation';
 }
 
-function pickIssueSummary(raw, situation) {
+function pickIssueSummary(raw, situation, transcript = []) {
   let fromAi = (raw.issue_summary || '').trim();
   if (fromAi) return humanizeInsightText(fromAi);
   const sit = (situation || '').trim();
-  if (!sit) return 'Preparing for a difficult conversation.';
+  if (!sit) {
+    const quote = pickBestUserQuote(transcript);
+    if (quote) return `You practiced how to say: “${quote}”`;
+    return 'You used this rehearsal to prepare for a difficult conversation.';
+  }
   const sentence = sit.match(/^[^.!?]+[.!?]?/)?.[0]?.trim() || sit;
   return sentence.length > 200 ? `${sentence.slice(0, 197)}…` : sentence;
 }
@@ -259,8 +322,8 @@ function pickIssueSummary(raw, situation) {
 export function normalizeInsights(raw, transcript = [], situation = '') {
   const styles = normalizeStyles(raw);
   const styleNotes = normalizeStyleNotes(raw, styles, transcript);
-  const issueTitle = pickIssueTitle(raw, situation);
-  const issueSummary = pickIssueSummary(raw, situation);
+  const issueTitle = pickIssueTitle(raw, situation, transcript);
+  const issueSummary = pickIssueSummary(raw, situation, transcript);
   const horsemen = HORSEMAN_KEYS.map((key) => ({ key, block: pickBlock(raw, key) })).filter(
     (x) => x.block
   );
@@ -268,7 +331,7 @@ export function normalizeInsights(raw, transcript = [], situation = '') {
   const horsemanBlocks = horsemen
     .map(({ key, block }) => ({ type: key, ...block }))
     .slice(0, 3);
-  const didWell = didWellBlock(raw);
+  const didWell = didWellBlock(raw, transcript);
   if (Array.isArray(didWell.instances)) {
     didWell.instances = didWell.instances.slice(0, 2);
   }

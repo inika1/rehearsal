@@ -301,11 +301,12 @@ const HORSEMAN_INTRO = {
 };
 
 function InsightsScreen({ conv, onHome, onTranscript }) {
-  const { styles, horseman, didWell } = resolveInsights(conv);
+  const { styles, horseman, didWell, styleNotes } = resolveInsights(conv);
   const summary = displayIssueSummary(conv);
   const horsemen = horseman || [];
   const isGood = horsemen.length === 0;
   const dominant = STYLE_METERS.reduce((a, m) => styles[m.key] > styles[a.key] ? m : a, STYLE_METERS[0]);
+  const dominantNotes = styleNotes?.[dominant.key]?.instances || [];
 
   return (
     <div className="scr">
@@ -319,7 +320,7 @@ function InsightsScreen({ conv, onHome, onTranscript }) {
       <div className="ins-scroll">
         {didWell && <DidWellSection block={didWell} />}
         {horsemen.map((b, i) => <WatchOutSection key={i} block={b} />)}
-        <StyleNoteSection meter={dominant} value={styles[dominant.key]} />
+        <StyleNoteSection meter={dominant} value={styles[dominant.key]} instances={dominantNotes} />
         <div className="viewtx" onClick={onTranscript}>See full transcript →</div>
       </div>
     </div>
@@ -352,12 +353,18 @@ function WatchOutSection({ block }) {
   );
 }
 
-function StyleNoteSection({ meter, value }) {
+function StyleNoteSection({ meter, value, instances = [] }) {
   return (
     <div className="ins-section">
       <div className="ins-section-lbl">How you came across</div>
       <div className="ins-style-name" style={{ color: meter.color }}>{meter.label} ({value}%)</div>
       <div className="ins-note">{meter.description}</div>
+      {instances.map((inst, i) => (
+        <div key={i} className={i === 0 ? 'style-instance-first' : 'style-instance'}>
+          <div className="style-example">"{inst.quote}"</div>
+          {inst.why && <div className="style-reason">{inst.why}</div>}
+        </div>
+      ))}
     </div>
   );
 }

@@ -110,10 +110,47 @@ test('normalizeInsights: issueTitle falls back to Conversation when nothing prov
   assert.equal(issueTitle, 'Conversation');
 });
 
+test('normalizeInsights: issueTitle can fall back to transcript when situation is empty', () => {
+  const transcript = [
+    { role: 'me', content: 'I feel ignored when plans change without telling me.' },
+  ];
+  const { issueTitle } = normalizeInsights({}, transcript, '');
+  assert.equal(issueTitle, 'I feel ignored when plans change');
+});
+
 test('normalizeInsights: issueSummary strips "The user" prefix', () => {
   const { issueSummary } = normalizeInsights({ issue_summary: 'The user feels ignored at home.' });
   assert.ok(!issueSummary.startsWith('The user'));
   assert.equal(issueSummary, 'You feel ignored at home.');
+});
+
+test('normalizeInsights: issueSummary can fall back to transcript when situation is empty', () => {
+  const transcript = [
+    { role: 'me', content: 'I need us to talk before changing plans.' },
+  ];
+  const { issueSummary } = normalizeInsights({}, transcript, '');
+  assert.equal(issueSummary, 'You practiced how to say: “I need us to talk before changing plans.”');
+});
+
+test('normalizeInsights: replaces generic did_well with transcript-specific moments', () => {
+  const transcript = [
+    { role: 'me', content: 'I feel frustrated when you cancel at the last minute.' },
+    { role: 'me', content: 'I would like more notice next time.' },
+  ];
+  const { blocks } = normalizeInsights({
+    did_well: {
+      instances: [
+        {
+          quote: 'Your messages in this rehearsal',
+          why: 'You stayed constructive overall and are building readiness for the real conversation.',
+        },
+      ],
+    },
+  }, transcript, '');
+  const dw = blocks.find((b) => b.type === 'did_well');
+  assert.equal(dw.instances.length, 2);
+  assert.equal(dw.instances[0].quote, 'I feel frustrated when you cancel at the last minute.');
+  assert.ok(!dw.instances[0].why.includes('constructive overall'));
 });
 
 test('humanizeInsightText: rewrites style-note phrasing', () => {

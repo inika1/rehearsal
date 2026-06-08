@@ -474,11 +474,12 @@ const HORSEMAN_INTRO = {
 };
 
 function InsightsScreen({ conv, onHome, onTranscript }) {
-  const { styles, horseman, didWell } = resolveInsights(conv);
+  const { styles, horseman, didWell, styleNotes } = resolveInsights(conv);
   const summary = displayIssueSummary(conv);
   const horsemen = horseman || [];
   const isGood = horsemen.length === 0;
   const dominant = STYLE_METERS.reduce((a, m) => styles[m.key] > styles[a.key] ? m : a, STYLE_METERS[0]);
+  const dominantNotes = styleNotes?.[dominant.key]?.instances || [];
 
   return (
     <View style={s.scr}>
@@ -496,7 +497,7 @@ function InsightsScreen({ conv, onHome, onTranscript }) {
       <ScrollView style={{ flex: 1 }}>
         {didWell && <DidWellSection block={didWell} />}
         {horsemen.map((b, i) => <WatchOutSection key={i} block={b} />)}
-        <StyleNoteSection meter={dominant} value={styles[dominant.key]} />
+        <StyleNoteSection meter={dominant} value={styles[dominant.key]} instances={dominantNotes} />
         <TouchableOpacity onPress={onTranscript} style={s.viewTx}>
           <Text style={s.viewTxTx}>See full transcript</Text>
         </TouchableOpacity>
@@ -535,12 +536,18 @@ function WatchOutSection({ block }) {
   );
 }
 
-function StyleNoteSection({ meter, value }) {
+function StyleNoteSection({ meter, value, instances = [] }) {
   return (
     <View style={s.insSection}>
       <Text style={s.insSectionLbl}>How you came across</Text>
       <Text style={[s.insStyleName, { color: meter.color }]}>{meter.label} ({value}%)</Text>
       <Text style={s.insNote}>{meter.description}</Text>
+      {instances.map((inst, i) => (
+        <View key={i} style={i > 0 ? s.insMoment : undefined}>
+          <Text style={s.insQuote}>{'“'}{inst.quote}{'”'}</Text>
+          {inst.why ? <Text style={s.insNote}>{inst.why}</Text> : null}
+        </View>
+      ))}
     </View>
   );
 }
