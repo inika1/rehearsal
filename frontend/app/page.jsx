@@ -7,6 +7,7 @@ import {
 import { configureCoachSpeech, speakCoachText, stopCoachSpeech } from './coachSpeech.js';
 
 const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+const SPEECH_SILENCE_MS = 3000;
 
 const j = (r) => r.json();
 const api = {
@@ -149,14 +150,35 @@ function CallScreen({ person, conversation, messages, setMessages, onEnd }) {
   const timer = useRef(null);
   const recog = useRef(null);
   const pendingText = useRef('');
+  const recognitionBaseText = useRef('');
+  const silenceTimer = useRef(null);
   const busyRef = useRef(false);
   const activeRef = useRef(true);
   const sendRef = useRef(null);
 
   const fmt = (s) => `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`;
 
+  const scheduleSpeechSend = (text) => {
+    const trimmed = text.trim();
+    if (!trimmed) return;
+    pendingText.current = trimmed;
+    clearTimeout(silenceTimer.current);
+    silenceTimer.current = setTimeout(() => {
+      const finalText = pendingText.current.trim();
+      pendingText.current = '';
+      recognitionBaseText.current = '';
+      silenceTimer.current = null;
+      setInput('');
+      if (finalText && activeRef.current) sendRef.current(finalText);
+    }, SPEECH_SILENCE_MS);
+  };
+
   const send = async (text) => {
     if (!text.trim() || busyRef.current) return;
+    clearTimeout(silenceTimer.current);
+    silenceTimer.current = null;
+    pendingText.current = '';
+    recognitionBaseText.current = '';
     busyRef.current = true;
     setBusy(true);
     recog.current?.abort();
@@ -200,32 +222,37 @@ function CallScreen({ person, conversation, messages, setMessages, onEnd }) {
     const SR = w.SpeechRecognition || w.webkitSpeechRecognition;
     if (!SR) return;
     const r = new SR();
-    r.continuous = false;
+    r.continuous = true;
     r.interimResults = true;
     r.lang = 'en-US';
     r.onstart = () => setListening(true);
     r.onresult = (e) => {
       let text = '';
       for (let i = 0; i < e.results.length; i++) text += e.results[i][0].transcript;
+      text = `${recognitionBaseText.current}${text}`.trim();
       setInput(text);
-      if (e.results[e.results.length - 1].isFinal) pendingText.current = text;
+      scheduleSpeechSend(text);
     };
     r.onend = () => {
       setListening(false);
-      const text = pendingText.current.trim();
-      pendingText.current = '';
-      setInput('');
-      if (text) sendRef.current(text);
+      if (pendingText.current.trim() && !silenceTimer.current) scheduleSpeechSend(pendingText.current);
     };
     r.onerror = () => setListening(false);
     recog.current = r;
-    return () => { activeRef.current = false; r.abort(); };
+    return () => {
+      activeRef.current = false;
+      clearTimeout(silenceTimer.current);
+      r.abort();
+    };
   }, []);
 
   useEffect(() => {
     if (!busy && !listening && activeRef.current) {
       const t = setTimeout(() => {
-        if (!busyRef.current && activeRef.current) try { recog.current?.start(); } catch {}
+        if (!busyRef.current && activeRef.current) {
+          recognitionBaseText.current = pendingText.current ? `${pendingText.current} ` : '';
+          try { recog.current?.start(); } catch {}
+        }
       }, 300);
       return () => clearTimeout(t);
     }
@@ -254,6 +281,7 @@ function CallScreen({ person, conversation, messages, setMessages, onEnd }) {
       </div>
       <div className="endbtn" onClick={() => {
         activeRef.current = false;
+        clearTimeout(silenceTimer.current);
         recog.current?.abort();
         stopCoachSpeech();
         onEnd(fmt(secs));

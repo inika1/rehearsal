@@ -21,6 +21,7 @@ import { configureCoachSpeech, speakCoachText, stopCoachSpeech } from './shared/
 // When testing on a physical device, change this to your machine's local IP.
 // e.g. 'http://192.168.1.42:4000'
 const API = 'https://rehearsal-production-5d15.up.railway.app';
+const SPEECH_SILENCE_MS = 3000;
 
 const j = (r) => r.json();
 const api = {
@@ -274,27 +275,48 @@ function CallScreen({ person, conversation, messages, setMessages, onEnd }) {
   const secsRef = useRef(0);
   const silenceTimer = useRef(null);
   const pendingTextRef = useRef('');
+  const recognitionBaseText = useRef('');
 
   const fmt = (n) =>
     `${String(Math.floor(n / 60)).padStart(2, '0')}:${String(n % 60).padStart(2, '0')}`;
 
+  const scheduleSpeechSend = (text) => {
+    const trimmed = text.trim();
+    if (!trimmed) return;
+    pendingTextRef.current = trimmed;
+    clearTimeout(silenceTimer.current);
+    silenceTimer.current = setTimeout(() => {
+      const finalText = pendingTextRef.current.trim();
+      pendingTextRef.current = '';
+      recognitionBaseText.current = '';
+      silenceTimer.current = null;
+      setInput('');
+      if (finalText && activeRef.current) sendRef.current(finalText);
+    }, SPEECH_SILENCE_MS);
+  };
+
   const startListening = async () => {
     if (busyRef.current || !activeRef.current) return;
-    setInput('');
+    if (!pendingTextRef.current) setInput('');
+    recognitionBaseText.current = pendingTextRef.current ? `${pendingTextRef.current} ` : '';
     if (Platform.OS === 'web') {
       const w = /** @type {any} */ (window);
       const SR = w.SpeechRecognition || w.webkitSpeechRecognition;
       if (!SR) return;
       const rec = new SR();
       rec.lang = 'en-US';
+      rec.continuous = true;
       rec.interimResults = true;
       rec.onstart = () => setListening(true);
       rec.onresult = (e) => {
-        const text = Array.from(e.results).map((r) => r[0].transcript).join('');
+        const text = `${recognitionBaseText.current}${Array.from(e.results).map((r) => r[0].transcript).join('')}`.trim();
         setInput(text);
-        if (e.results[e.results.length - 1].isFinal && text.trim()) sendRef.current(text.trim());
+        scheduleSpeechSend(text);
       };
-      rec.onend = () => setListening(false);
+      rec.onend = () => {
+        setListening(false);
+        if (pendingTextRef.current.trim() && !silenceTimer.current) scheduleSpeechSend(pendingTextRef.current);
+      };
       rec.onerror = () => setListening(false);
       webRecognition.current = rec;
       rec.start();
@@ -308,6 +330,10 @@ function CallScreen({ person, conversation, messages, setMessages, onEnd }) {
 
   const sendText = async (text) => {
     if (!text || busyRef.current) return;
+    clearTimeout(silenceTimer.current);
+    silenceTimer.current = null;
+    pendingTextRef.current = '';
+    recognitionBaseText.current = '';
     busyRef.current = true;
     setBusy(true);
     if (Platform.OS === 'web') webRecognition.current?.abort();
@@ -335,28 +361,19 @@ function CallScreen({ person, conversation, messages, setMessages, onEnd }) {
 
   useSpeechRecognitionEvent('result', (event) => {
     if (Platform.OS === 'web') return;
-    const text = event.results[0]?.transcript ?? '';
+    const text = `${recognitionBaseText.current}${event.results[0]?.transcript ?? ''}`.trim();
     setInput(text);
-    pendingTextRef.current = text;
-    if (event.isFinal && text.trim()) {
-      pendingTextRef.current = '';
-      sendRef.current(text.trim());
-    }
+    scheduleSpeechSend(text);
   });
 
   useSpeechRecognitionEvent('end', () => {
     if (Platform.OS !== 'web') {
       setListening(false);
-      const pending = pendingTextRef.current.trim();
-      if (pending) {
-        pendingTextRef.current = '';
-        sendRef.current(pending);
-      }
+      if (pendingTextRef.current.trim() && !silenceTimer.current) scheduleSpeechSend(pendingTextRef.current);
     }
   });
   useSpeechRecognitionEvent('error', () => {
     if (Platform.OS !== 'web') {
-      pendingTextRef.current = '';
       setListening(false);
     }
   });
@@ -383,6 +400,8 @@ function CallScreen({ person, conversation, messages, setMessages, onEnd }) {
     }
     return () => {
       activeRef.current = false;
+      clearTimeout(silenceTimer.current);
+      silenceTimer.current = null;
       clearInterval(timer.current);
       ExpoSpeechRecognitionModule.stop();
       stopCoachSpeech();
@@ -430,7 +449,16 @@ function CallScreen({ person, conversation, messages, setMessages, onEnd }) {
           <Text style={s.sendBtnTx}>↑</Text>
         </TouchableOpacity>
       </View>
-      <TouchableOpacity onPress={() => onEnd(fmt(secs))} style={s.endBtn}>
+      <TouchableOpacity onPress={() => {
+        activeRef.current = false;
+        clearTimeout(silenceTimer.current);
+        silenceTimer.current = null;
+        pendingTextRef.current = '';
+        recognitionBaseText.current = '';
+        ExpoSpeechRecognitionModule.stop();
+        stopCoachSpeech();
+        onEnd(fmt(secs));
+      }} style={s.endBtn}>
         <Text style={s.endBtnTx}>📞</Text>
       </TouchableOpacity>
       <Text style={s.hint}>End call to see your insights</Text>
