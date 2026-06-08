@@ -439,10 +439,10 @@ function CallScreen({ person, conversation, messages, setMessages, onEnd }) {
 }
 
 const HORSEMAN_INTRO = {
-  critical: 'This came across as a character attack rather than talking about the specific thing that happened:',
-  contemptuous: 'This came across as contempt — mockery or dismissal — which tends to shut conversations down:',
-  defensive: 'This came across as deflecting rather than engaging with what was said:',
-  stonewalling: 'This came across as shutting down instead of staying in the conversation:',
+  critical: 'You made this sound like a character attack instead of naming the specific thing that happened:',
+  contemptuous: 'You let mockery or dismissal come through here, which can shut the conversation down:',
+  defensive: 'You sounded like you were deflecting instead of staying with what was said:',
+  stonewalling: 'You sounded like you were shutting down instead of staying in the conversation:',
 };
 
 function InsightsScreen({ conv, onHome, onTranscript }) {
@@ -461,7 +461,7 @@ function InsightsScreen({ conv, onHome, onTranscript }) {
         </TouchableOpacity>
       </View>
       <Text style={s.insCoachLine}>
-        {isGood ? 'You\'re ready. Good work.' : 'Good work. A few things to keep in mind.'}
+        {isGood ? 'You handled this well. Good work.' : 'You did some things well. A few moments are worth noticing.'}
       </Text>
       <Text style={s.convTtl}>{displayHeadline(conv)}</Text>
       {summary ? <Text style={s.convSummary}>{summary}</Text> : null}
@@ -496,12 +496,12 @@ function DidWellSection({ block }) {
 function WatchOutSection({ block }) {
   return (
     <View style={[s.insSection, s.insSectionWarn]}>
-      <Text style={s.insSectionLbl}>Watch out for this</Text>
-      <Text style={s.insNote}>{HORSEMAN_INTRO[block.type] || 'Watch out for this pattern:'}</Text>
+      <Text style={s.insSectionLbl}>A moment to watch</Text>
+      <Text style={s.insNote}>{HORSEMAN_INTRO[block.type] || 'You used a pattern worth watching here:'}</Text>
       <Text style={s.insQuote}>{'“'}{block.quote}{'”'}</Text>
       {block.instead ? (
         <View style={s.insInstead}>
-          <Text style={s.insInsteadTx}>Try instead — {'“'}{block.instead}{'”'}</Text>
+          <Text style={s.insInsteadTx}>You could try: {'“'}{block.instead}{'”'}</Text>
         </View>
       ) : null}
     </View>

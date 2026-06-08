@@ -266,34 +266,33 @@ function CallScreen({ person, conversation, messages, setMessages, onEnd }) {
 }
 
 const HORSEMAN_INTRO = {
-  critical: 'This came across as a character attack rather than talking about the specific thing that happened:',
-  contemptuous: 'This came across as contempt — mockery or dismissal — which tends to shut conversations down:',
-  defensive: 'This came across as deflecting rather than engaging with what was said:',
-  stonewalling: 'This came across as shutting down instead of staying in the conversation:',
+  critical: 'You made this sound like a character attack instead of naming the specific thing that happened:',
+  contemptuous: 'You let mockery or dismissal come through here, which can shut the conversation down:',
+  defensive: 'You sounded like you were deflecting instead of staying with what was said:',
+  stonewalling: 'You sounded like you were shutting down instead of staying in the conversation:',
 };
 
 function InsightsScreen({ conv, onHome, onTranscript }) {
-  const { styles, blocks } = resolveInsights(conv);
+  const { styles, horseman, didWell } = resolveInsights(conv);
   const summary = displayIssueSummary(conv);
-  const didWell = blocks.find(b => b.type === 'did_well' || b.type === 'went_well');
-  const horsemen = blocks.filter(b => !['did_well', 'went_well', 'legacy', 'good'].includes(b.type));
+  const horsemen = horseman || [];
   const isGood = horsemen.length === 0;
   const dominant = STYLE_METERS.reduce((a, m) => styles[m.key] > styles[a.key] ? m : a, STYLE_METERS[0]);
 
   return (
-    <div className=”scr”>
-      <div className=”topbar”><div className=”iconbtn” onClick={onHome}>{'⌂'}</div></div>
-      <div className=”ins-coach-line”>
-        {isGood ? “You're ready. Good work.” : “Good work. A few things to keep in mind.”}
+    <div className="scr">
+      <div className="topbar"><div className="iconbtn" onClick={onHome}>{'⌂'}</div></div>
+      <div className="ins-coach-line">
+        {isGood ? "You handled this well. Good work." : "You did some things well. A few moments are worth noticing."}
       </div>
-      <div className=”conv-ttl”>{displayHeadline(conv)}</div>
-      {summary && <p className=”conv-summary”>{summary}</p>}
-      <div className=”conv-meta”>{'with ' + (conv.person_name || '') + ' · ' + conv.duration}</div>
-      <div className=”ins-scroll”>
+      <div className="conv-ttl">{displayHeadline(conv)}</div>
+      {summary && <p className="conv-summary">{summary}</p>}
+      <div className="conv-meta">{'with ' + (conv.person_name || '') + ' · ' + conv.duration}</div>
+      <div className="ins-scroll">
         {didWell && <DidWellSection block={didWell} />}
         {horsemen.map((b, i) => <WatchOutSection key={i} block={b} />)}
-        <StyleNote meter={dominant} value={styles[dominant.key]} />
-        <div className=”viewtx” onClick={onTranscript}>See full transcript →</div>
+        <StyleNoteSection meter={dominant} value={styles[dominant.key]} />
+        <div className="viewtx" onClick={onTranscript}>See full transcript →</div>
       </div>
     </div>
   );
@@ -302,12 +301,12 @@ function InsightsScreen({ conv, onHome, onTranscript }) {
 function DidWellSection({ block }) {
   const instances = block.instances || (block.quote ? [{ quote: block.quote, why: block.why }] : []);
   return (
-    <div className=”ins-section”>
-      <div className=”ins-section-lbl”>What you did well</div>
+    <div className="ins-section">
+      <div className="ins-section-lbl">What you did well</div>
       {instances.map((inst, i) => (
-        <div key={i} className=”ins-moment”>
-          <div className=”ins-quote”>”{inst.quote}”</div>
-          {inst.why && <div className=”ins-note”>{inst.why}</div>}
+        <div key={i} className="ins-moment">
+          <div className="ins-quote">"{inst.quote}"</div>
+          {inst.why && <div className="ins-note">{inst.why}</div>}
         </div>
       ))}
     </div>
@@ -316,21 +315,21 @@ function DidWellSection({ block }) {
 
 function WatchOutSection({ block }) {
   return (
-    <div className=”ins-section ins-watchout”>
-      <div className=”ins-section-lbl”>Watch out for this</div>
-      <div className=”ins-note”>{HORSEMAN_INTRO[block.type] || 'Watch out for this pattern:'}</div>
-      <div className=”ins-quote”>”{block.quote}”</div>
-      {block.instead && <div className=”ins-instead”>Try instead — “{block.instead}”</div>}
+    <div className="ins-section ins-watchout">
+      <div className="ins-section-lbl">A moment to watch</div>
+      <div className="ins-note">{HORSEMAN_INTRO[block.type] || 'You used a pattern worth watching here:'}</div>
+      <div className="ins-quote">"{block.quote}"</div>
+      {block.instead && <div className="ins-instead">You could try: "{block.instead}"</div>}
     </div>
   );
 }
 
-function StyleNote({ meter, value }) {
+function StyleNoteSection({ meter, value }) {
   return (
-    <div className=”ins-section”>
-      <div className=”ins-section-lbl”>How you came across</div>
-      <div className=”ins-style-name” style={{ color: meter.color }}>{meter.label} ({value}%)</div>
-      <div className=”ins-note”>{meter.description}</div>
+    <div className="ins-section">
+      <div className="ins-section-lbl">How you came across</div>
+      <div className="ins-style-name" style={{ color: meter.color }}>{meter.label} ({value}%)</div>
+      <div className="ins-note">{meter.description}</div>
     </div>
   );
 }
