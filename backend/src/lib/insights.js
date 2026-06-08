@@ -27,6 +27,39 @@ function truncate(s, n = 48) {
   return t.length > n ? `${t.slice(0, n)}…` : t;
 }
 
+/** Rewrite third-person "the user…" copy into second person for the insights UI. */
+export function humanizeInsightText(text) {
+  if (!text || typeof text !== 'string') return '';
+  let s = text.trim();
+  if (!s) return '';
+
+  s = s
+    .replace(/^The user is trying to work through a situation where they /i, "You're ")
+    .replace(/^This line shows (?:that )?the user (?:is|was|has been) /i, 'This shows you ')
+    .replace(/^This (?:line|phrase|wording) (?:shows|suggests|indicates) (?:that )?the user /i, 'This shows you ')
+    .replace(/^This shows (?:that )?the user /i, 'This shows you ')
+    .replace(/^The user feels /i, 'You feel ')
+    .replace(/^The user felt /i, 'You felt ')
+    .replace(/^The user is /i, 'You are ')
+    .replace(/^The user was /i, 'You were ')
+    .replace(/^The user has /i, 'You have ')
+    .replace(/^The user /i, 'You ')
+    .replace(/\bthe user's\b/gi, 'your')
+    .replace(/\bthe user\b/gi, 'you')
+    .replace(/\buser's\b/gi, 'your');
+
+  s = s
+    .replace(/\bYou is\b/g, 'You are')
+    .replace(/\byou is\b/g, 'you are')
+    .replace(/\bYou was\b/g, 'You were')
+    .replace(/\byou was\b/g, 'you were')
+    .replace(/\bYou has\b/g, 'You have')
+    .replace(/\byou has\b/g, 'you have')
+    .replace(/\bYou are being\s+(\w+ing)\b/g, "You're $1");
+
+  return s;
+}
+
 function num(v, fallback = 0) {
   const n = Number(v);
   return Number.isFinite(n) ? Math.round(Math.max(0, Math.min(100, n))) : fallback;
@@ -54,7 +87,7 @@ function pickStyleInstance(item) {
   if (!item || typeof item !== 'object') return null;
   const quote = (item.quote || item.example || '').trim();
   if (!quote) return null;
-  const why = (item.why || item.reason || '').trim();
+  const why = humanizeInsightText(item.why || item.reason || '');
   return { quote, why: why || 'This line shaped how much of this style you used.' };
 }
 
@@ -143,8 +176,8 @@ function pickBlock(raw, key) {
   if (!quote) return null;
   return {
     quote,
-    why: (b.why || b.explanation || '').trim(),
-    instead: (b.instead || b.alternative || '').trim(),
+    why: humanizeInsightText(b.why || b.explanation || ''),
+    instead: humanizeInsightText(b.instead || b.alternative || ''),
   };
 }
 
@@ -152,7 +185,7 @@ function pickDidWellInstance(item) {
   if (!item || typeof item !== 'object') return null;
   const quote = (item.quote || '').trim();
   if (!quote) return null;
-  const why = (item.why || item.reason || item.explanation || '').trim();
+  const why = humanizeInsightText(item.why || item.reason || item.explanation || '');
   return {
     quote,
     why: why || 'This came across positively in your session.',
@@ -209,13 +242,7 @@ function pickIssueTitle(raw, situation) {
 
 function pickIssueSummary(raw, situation) {
   let fromAi = (raw.issue_summary || '').trim();
-  if (fromAi) {
-    fromAi = fromAi
-      .replace(/^The user is trying to work through a situation where they /i, "You're ")
-      .replace(/^The user feels /i, "You feel ")
-      .replace(/^The user /i, "You ");
-    return fromAi;
-  }
+  if (fromAi) return humanizeInsightText(fromAi);
   const sit = (situation || '').trim();
   if (!sit) return 'Preparing for a difficult conversation.';
   const sentence = sit.match(/^[^.!?]+[.!?]?/)?.[0]?.trim() || sit;

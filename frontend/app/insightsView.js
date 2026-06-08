@@ -84,6 +84,39 @@ export function formatQuote(text, max = 140) {
   return t.length > max ? `${t.slice(0, max - 1)}…` : t;
 }
 
+/** Rewrite third-person "the user…" copy into second person for the insights UI. */
+export function humanizeInsightText(text) {
+  if (!text || typeof text !== 'string') return '';
+  let s = text.trim();
+  if (!s) return '';
+
+  s = s
+    .replace(/^The user is trying to work through a situation where they /i, "You're ")
+    .replace(/^This line shows (?:that )?the user (?:is|was|has been) /i, 'This shows you ')
+    .replace(/^This (?:line|phrase|wording) (?:shows|suggests|indicates) (?:that )?the user /i, 'This shows you ')
+    .replace(/^This shows (?:that )?the user /i, 'This shows you ')
+    .replace(/^The user feels /i, 'You feel ')
+    .replace(/^The user felt /i, 'You felt ')
+    .replace(/^The user is /i, 'You are ')
+    .replace(/^The user was /i, 'You were ')
+    .replace(/^The user has /i, 'You have ')
+    .replace(/^The user /i, 'You ')
+    .replace(/\bthe user's\b/gi, 'your')
+    .replace(/\bthe user\b/gi, 'you')
+    .replace(/\buser's\b/gi, 'your');
+
+  s = s
+    .replace(/\bYou is\b/g, 'You are')
+    .replace(/\byou is\b/g, 'you are')
+    .replace(/\bYou was\b/g, 'You were')
+    .replace(/\byou was\b/g, 'you were')
+    .replace(/\bYou has\b/g, 'You have')
+    .replace(/\byou has\b/g, 'you have')
+    .replace(/\bYou are being\s+(\w+ing)\b/g, "You're $1");
+
+  return s;
+}
+
 export function normalizeStyleNote(note) {
   if (!note) return { instances: [] };
   if (Array.isArray(note.instances) && note.instances.length) {
@@ -93,7 +126,7 @@ export function normalizeStyleNote(note) {
         .slice(0, 2)
         .map((i) => ({
           quote: formatQuote(i.quote, 160),
-          why: (i.why || i.reason || '').trim(),
+          why: humanizeInsightText(i.why || i.reason || ''),
         })),
     };
   }
@@ -103,7 +136,7 @@ export function normalizeStyleNote(note) {
       instances: [
         {
           quote: formatQuote(quote, 160),
-          why: (note.why || note.reason || '').trim(),
+          why: humanizeInsightText(note.why || note.reason || ''),
         },
       ],
     };
@@ -124,7 +157,7 @@ export function normalizeDidWellBlock(block) {
     .slice(0, 2)
     .map((i) => ({
       quote: formatQuote(i.quote, 160),
-      why: (i.why || '').trim(),
+      why: humanizeInsightText(i.why || ''),
     }));
   if (!instances.length) return DEFAULT_DID_WELL;
   return { type: 'did_well', instances };
@@ -137,8 +170,8 @@ function normalizeHorsemanBlock(block) {
   return {
     type: block.type,
     quote: formatQuote(quote, 160),
-    why: (block.why || '').trim(),
-    instead: block.instead ? formatQuote(block.instead, 160) : '',
+    why: humanizeInsightText(block.why || ''),
+    instead: block.instead ? formatQuote(humanizeInsightText(block.instead), 160) : '',
   };
 }
 
@@ -164,11 +197,7 @@ export function toShortTitle(text, maxWords = 6) {
 }
 
 function normalizeSummaryText(summary) {
-  return (summary || '')
-    .trim()
-    .replace(/^The user is trying to work through a situation where they /i, "You're ")
-    .replace(/^The user feels /i, 'You feel ')
-    .replace(/^The user /i, 'You ');
+  return humanizeInsightText(summary);
 }
 
 export function displayHeadline(conv) {

@@ -20,12 +20,12 @@ const ANALYSIS_SCHEMA = `{
   "passive_aggressive": <0-100 int>,
   "assertive": <0-100 int>,
   "style_notes": {
-    "passive": {"instances": [{"quote": "<exact user words>", "why": "<why this shows passive>"}]},
+    "passive": {"instances": [{"quote": "<exact words they said>", "why": "<second person: why this shows passive, use you/your>"}]},
     "aggressive": {"instances": [{"quote": "...", "why": "..."}]},
     "passive_aggressive": {"instances": [{"quote": "...", "why": "..."}]},
     "assertive": {"instances": [{"quote": "...", "why": "..."}]}
   },
-  "critical": null | {"quote": "<exact words the user said>", "why": "<why this was critical>", "instead": "<better phrasing>"},
+  "critical": null | {"quote": "<exact words they said>", "why": "<second person: why this was critical>", "instead": "<better phrasing>"},
   "contemptuous": null | {"quote": "...", "why": "...", "instead": "..."},
   "defensive": null | {"quote": "...", "why": "...", "instead": "..."},
   "stonewalling": null | {"quote": "...", "why": "...", "instead": "..."},
@@ -34,7 +34,7 @@ const ANALYSIS_SCHEMA = `{
   "issue_summary": "<one sentence in second person (you/your) summarising the issue, not 'The user...'>",
   "did_well": {
     "instances": [
-      {"quote": "<exact words the user said>", "why": "<why this moment was positive>"},
+      {"quote": "<exact words they said>", "why": "<second person: why this moment was positive>"},
       {"quote": "...", "why": "..."}
     ]
   }
@@ -197,19 +197,19 @@ export async function analyse(person, situation, transcript) {
     `Estimate how much of the user's communication was passive (avoids confrontation, accommodates others), ` +
     `aggressive (forceful, win-focused), passive-aggressive (indirect hostility, sarcasm, avoidance), ` +
     `and assertive (clear, respectful, balances own needs with listening); the four integers must sum to 100. ` +
-    `For style_notes, each style needs 1-2 instances: exact user quotes plus why that line shows that style (or why the score is low—cite a contrasting line). Never use vague summaries without a quote. ` +
-    `Detect if the user showed any of these toward the other person: critical (attacking character), ` +
+    `For style_notes, each style needs 1-2 instances: exact quotes plus a why in second person (you/your)—never write "the user". ` +
+    `Detect if they showed any of these toward the other person: critical (attacking character), ` +
     `contemptuous (disrespect, sarcasm, disgust), defensive (deflecting blame, making excuses), ` +
     `stonewalling (shutting down, one-word answers, refusing to engage). ` +
-    `For each detected pattern, quote their exact words, explain briefly why it fits, and suggest better phrasing. ` +
-    `Always include did_well with 2-3 instances when possible (at least 1): each must quote exact user words from the transcript and why that moment was positive. ` +
+    `For each detected pattern, quote their exact words, explain briefly in second person (you/your) why it fits, and suggest better phrasing. ` +
+    `Always include did_well with 2-3 instances when possible (at least 1): quote exact words and why that moment was positive—always you/your, never "the user". ` +
     `If NONE of the four horsemen apply: set conversation_good true and all horsemen null. ` +
     `If exactly ONE horseman clearly applies, return only that horseman (plus did_well is added separately). ` +
     `If TWO or more horsemen apply, return each of them. ` +
     `If ONE horseman applies but a second is borderline, include both horseman blocks. ` +
     `If any horseman is present, conversation_good must be false. ` +
     `issue_title must be 4-6 words naming the core issue (not a full sentence). ` +
-    `issue_summary must be one clear sentence in second person (you/your) about what you are working through—never start with "The user". ` +
+    `issue_summary must be one clear sentence in second person (you/your). Every why and instead field must also use you/your—never "the user", "user's", or "User". ` +
     `Return ONLY JSON, no markdown, matching this schema:\n${ANALYSIS_SCHEMA}`;
 
   const convoText = transcript

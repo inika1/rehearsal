@@ -5,6 +5,7 @@ import {
   normalizeInsights,
   toShortTitle,
   styleNotesFromTranscript,
+  humanizeInsightText,
 } from '../lib/insights.js';
 
 // ── normalizeStyles ───────────────────────────────────────────────────────────
@@ -112,6 +113,31 @@ test('normalizeInsights: issueTitle falls back to Conversation when nothing prov
 test('normalizeInsights: issueSummary strips "The user" prefix', () => {
   const { issueSummary } = normalizeInsights({ issue_summary: 'The user feels ignored at home.' });
   assert.ok(!issueSummary.startsWith('The user'));
+  assert.equal(issueSummary, 'You feel ignored at home.');
+});
+
+test('humanizeInsightText: rewrites style-note phrasing', () => {
+  assert.equal(
+    humanizeInsightText('This line shows the user is being passive-aggressive.'),
+    'This shows you being passive-aggressive.'
+  );
+  assert.equal(
+    humanizeInsightText("This shows the user's communication was defensive."),
+    'This shows your communication was defensive.'
+  );
+});
+
+test('normalizeInsights: horseman why fields are second person', () => {
+  const { blocks } = normalizeInsights({
+    critical: {
+      quote: 'You never listen',
+      why: 'This line shows the user is attacking their character.',
+      instead: 'The user could say how they feel instead.',
+    },
+  });
+  const critical = blocks.find((b) => b.type === 'critical');
+  assert.equal(critical.why, 'This shows you attacking their character.');
+  assert.ok(!critical.instead.includes('user'));
 });
 
 test('normalizeInsights: multiple horsemen all appear in blocks', () => {
