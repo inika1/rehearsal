@@ -125,6 +125,14 @@ test('humanizeInsightText: rewrites style-note phrasing', () => {
     humanizeInsightText("This shows the user's communication was defensive."),
     'This shows your communication was defensive.'
   );
+  assert.equal(
+    humanizeInsightText('The user could state their own needs more clearly.'),
+    'You could state your own needs more clearly.'
+  );
+  assert.equal(
+    humanizeInsightText('They felt ignored and backed away.'),
+    'You felt ignored and backed away.'
+  );
 });
 
 test('normalizeInsights: horseman why fields are second person', () => {

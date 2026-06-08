@@ -16,10 +16,10 @@ const LOW_STYLE_WHY = {
 };
 
 const HIGH_STYLE_WHY = {
-  passive: () => 'Softening or avoiding conflict shows up here.',
-  aggressive: () => 'Forceful or win-focused language shows up here.',
-  passive_aggressive: () => 'Agreeing on the surface while pushing back indirectly shows up here.',
-  assertive: () => 'Clear feelings, impact, and needs show up here.',
+  passive: () => 'You softened your point or avoided conflict here.',
+  aggressive: () => 'You used forceful or win-focused language here.',
+  passive_aggressive: () => 'You agreed on the surface while pushing back indirectly here.',
+  assertive: () => 'You named clear feelings, impact, or needs here.',
 };
 
 function truncate(s, n = 48) {
@@ -38,6 +38,11 @@ export function humanizeInsightText(text) {
     .replace(/^This line shows (?:that )?the user (?:is|was|has been) /i, 'This shows you ')
     .replace(/^This (?:line|phrase|wording) (?:shows|suggests|indicates) (?:that )?the user /i, 'This shows you ')
     .replace(/^This shows (?:that )?the user /i, 'This shows you ')
+    .replace(/^The user could /i, 'You could ')
+    .replace(/^The user should /i, 'You should ')
+    .replace(/^The user can /i, 'You can ')
+    .replace(/^They feel /i, 'You feel ')
+    .replace(/^They felt /i, 'You felt ')
     .replace(/^The user feels /i, 'You feel ')
     .replace(/^The user felt /i, 'You felt ')
     .replace(/^The user is /i, 'You are ')
@@ -45,6 +50,8 @@ export function humanizeInsightText(text) {
     .replace(/^The user has /i, 'You have ')
     .replace(/^The user /i, 'You ')
     .replace(/\bthe user's\b/gi, 'your')
+    .replace(/\bthe user's own\b/gi, 'your own')
+    .replace(/\btheir own needs\b/gi, 'your own needs')
     .replace(/\bthe user\b/gi, 'you')
     .replace(/\buser's\b/gi, 'your');
 

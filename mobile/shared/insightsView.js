@@ -11,28 +11,28 @@ export const STYLE_METERS = [
     label: 'Passive',
     color: '#8a9ab0',
     description:
-      'Avoids confrontation and often accommodates others, sometimes without saying what you actually need.',
+      'You softened your point or accommodated the other person, sometimes without saying what you actually needed.',
   },
   {
     key: 'aggressive',
     label: 'Aggressive',
     color: '#e54d4d',
     description:
-      'Prioritises winning or control and can override others’ feelings, which often raises defensiveness.',
+      'You pushed hard for control or certainty, which can make the other person more defensive.',
   },
   {
     key: 'passive_aggressive',
     label: 'Passive-aggressive',
     color: '#e8a23d',
     description:
-      'Sounds agreeable on the surface but frustration shows indirectly—sarcasm, avoidance, or subtle pushback.',
+      'You sounded agreeable on the surface while frustration came through indirectly.',
   },
   {
     key: 'assertive',
     label: 'Assertive',
     color: '#6bc48a',
     description:
-      'Balances clarity and respect—states your feelings and needs while staying open to the other person.',
+      'You balanced clarity and respect by naming your feelings or needs while staying open.',
   },
 ];
 
@@ -95,6 +95,11 @@ export function humanizeInsightText(text) {
     .replace(/^This line shows (?:that )?the user (?:is|was|has been) /i, 'This shows you ')
     .replace(/^This (?:line|phrase|wording) (?:shows|suggests|indicates) (?:that )?the user /i, 'This shows you ')
     .replace(/^This shows (?:that )?the user /i, 'This shows you ')
+    .replace(/^The user could /i, 'You could ')
+    .replace(/^The user should /i, 'You should ')
+    .replace(/^The user can /i, 'You can ')
+    .replace(/^They feel /i, 'You feel ')
+    .replace(/^They felt /i, 'You felt ')
     .replace(/^The user feels /i, 'You feel ')
     .replace(/^The user felt /i, 'You felt ')
     .replace(/^The user is /i, 'You are ')
@@ -102,6 +107,8 @@ export function humanizeInsightText(text) {
     .replace(/^The user has /i, 'You have ')
     .replace(/^The user /i, 'You ')
     .replace(/\bthe user's\b/gi, 'your')
+    .replace(/\bthe user's own\b/gi, 'your own')
+    .replace(/\btheir own needs\b/gi, 'your own needs')
     .replace(/\bthe user\b/gi, 'you')
     .replace(/\buser's\b/gi, 'your');
 
