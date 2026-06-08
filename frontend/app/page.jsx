@@ -2,11 +2,9 @@
 
 import { useEffect, useRef, useState } from 'react';
 import {
-  assertiveColor, BLOCK_META, displayHeadline, displayIssueSummary,
-  resolveInsights, STYLE_METERS, STYLES_INTRO,
+  displayHeadline, displayIssueSummary, resolveInsights, STYLE_METERS,
 } from './insightsView.js';
 import { configureCoachSpeech, speakCoachText, stopCoachSpeech } from './coachSpeech.js';
-import { StylePieChart } from './StylePieChart.jsx';
 
 const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
@@ -267,88 +265,72 @@ function CallScreen({ person, conversation, messages, setMessages, onEnd }) {
   );
 }
 
+const HORSEMAN_INTRO = {
+  critical: 'This came across as a character attack rather than talking about the specific thing that happened:',
+  contemptuous: 'This came across as contempt — mockery or dismissal — which tends to shut conversations down:',
+  defensive: 'This came across as deflecting rather than engaging with what was said:',
+  stonewalling: 'This came across as shutting down instead of staying in the conversation:',
+};
+
 function InsightsScreen({ conv, onHome, onTranscript }) {
-  const { styles, blocks, styleNotes } = resolveInsights(conv);
+  const { styles, blocks } = resolveInsights(conv);
   const summary = displayIssueSummary(conv);
+  const didWell = blocks.find(b => b.type === 'did_well' || b.type === 'went_well');
+  const horsemen = blocks.filter(b => !['did_well', 'went_well', 'legacy', 'good'].includes(b.type));
+  const isGood = horsemen.length === 0;
+  const dominant = STYLE_METERS.reduce((a, m) => styles[m.key] > styles[a.key] ? m : a, STYLE_METERS[0]);
+
   return (
-    <div className="scr">
-      <div className="topbar"><div className="iconbtn" onClick={onHome}>⌂</div></div>
-      <div className="conv-ttl">{displayHeadline(conv)}</div>
-      {summary && <p className="conv-summary">{summary}</p>}
-      <div className="conv-meta">with {conv.person_name || ''} · {conv.duration} · {conv.created_at?.slice(0, 10)}</div>
-      <div className="ins-scroll">
-        <p className="styles-intro">{STYLES_INTRO}</p>
-        <a
-          className="styles-ref"
-          href="https://www.scottishconflictresolution.org.uk/learning-zone-communication-styles"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          Communication styles guide (SCCR) ↗
-        </a>
-        <StylePieChart styles={styles} styleNotes={styleNotes} meters={STYLE_METERS} />
-        <div className="label">Insights</div>
-        {blocks.map((block, i) => (
-          <InsightBlock key={i} block={block} />
-        ))}
-        <div className="viewtx" onClick={onTranscript}>View full transcript →</div>
+    <div className=”scr”>
+      <div className=”topbar”><div className=”iconbtn” onClick={onHome}>{'⌂'}</div></div>
+      <div className=”ins-coach-line”>
+        {isGood ? “You're ready. Good work.” : “Good work. A few things to keep in mind.”}
+      </div>
+      <div className=”conv-ttl”>{displayHeadline(conv)}</div>
+      {summary && <p className=”conv-summary”>{summary}</p>}
+      <div className=”conv-meta”>{'with ' + (conv.person_name || '') + ' · ' + conv.duration}</div>
+      <div className=”ins-scroll”>
+        {didWell && <DidWellSection block={didWell} />}
+        {horsemen.map((b, i) => <WatchOutSection key={i} block={b} />)}
+        <StyleNote meter={dominant} value={styles[dominant.key]} />
+        <div className=”viewtx” onClick={onTranscript}>See full transcript →</div>
       </div>
     </div>
   );
 }
 
-function DidWellBlock({ block }) {
-  const meta = BLOCK_META.did_well;
-  const instances =
-    block.instances ||
-    (block.quote ? [{ quote: block.quote, why: block.why }] : []);
+function DidWellSection({ block }) {
+  const instances = block.instances || (block.quote ? [{ quote: block.quote, why: block.why }] : []);
   return (
-    <div className="icard">
-      <div className="icard-h">
-        <span className="dot" style={{ background: meta.color }} />
-        <span className="icard-t" style={{ color: meta.color }}>{meta.title}</span>
-      </div>
+    <div className=”ins-section”>
+      <div className=”ins-section-lbl”>What you did well</div>
       {instances.map((inst, i) => (
-        <div key={i} className={i > 0 ? 'did-well-item' : undefined}>
-          <div className="icard-quote">“{inst.quote}”</div>
-          {inst.why && <div className="icard-b">{inst.why}</div>}
+        <div key={i} className=”ins-moment”>
+          <div className=”ins-quote”>”{inst.quote}”</div>
+          {inst.why && <div className=”ins-note”>{inst.why}</div>}
         </div>
       ))}
     </div>
   );
 }
 
-function InsightBlock({ block }) {
-  if (block.type === 'legacy') {
-    return (
-      <>
-        {block.tend && <InsightCard color="#e8a23d" title="You tend to…" body={block.tend} />}
-        {block.try && <InsightCard color="#b8a0d4" title="Try to…" body={block.try} />}
-        {block.used && <InsightCard color="#9b8cf0" title="You used…" body={block.used} />}
-      </>
-    );
-  }
-  if (block.type === 'did_well' || block.type === 'went_well') {
-    return <DidWellBlock block={block} />;
-  }
-  const meta = BLOCK_META[block.type] || { title: block.type, color: '#b8a0d4' };
+function WatchOutSection({ block }) {
   return (
-    <div className="icard">
-      <div className="icard-h"><span className="dot" style={{ background: meta.color }} /><span className="icard-t" style={{ color: meta.color }}>{meta.title}</span></div>
-      <div className="icard-quote">“{block.quote}”</div>
-      {block.why && <div className="icard-b">{block.why}</div>}
-      {block.instead && (
-        <div className="icard-instead"><span className="icard-instead-lbl">Try instead</span> “{block.instead}”</div>
-      )}
+    <div className=”ins-section ins-watchout”>
+      <div className=”ins-section-lbl”>Watch out for this</div>
+      <div className=”ins-note”>{HORSEMAN_INTRO[block.type] || 'Watch out for this pattern:'}</div>
+      <div className=”ins-quote”>”{block.quote}”</div>
+      {block.instead && <div className=”ins-instead”>Try instead — “{block.instead}”</div>}
     </div>
   );
 }
 
-function InsightCard({ color, title, body }) {
+function StyleNote({ meter, value }) {
   return (
-    <div className="icard">
-      <div className="icard-h"><span className="dot" style={{ background: color }} /><span className="icard-t" style={{ color }}>{title}</span></div>
-      <div className="icard-b">{body}</div>
+    <div className=”ins-section”>
+      <div className=”ins-section-lbl”>How you came across</div>
+      <div className=”ins-style-name” style={{ color: meter.color }}>{meter.label} ({value}%)</div>
+      <div className=”ins-note”>{meter.description}</div>
     </div>
   );
 }

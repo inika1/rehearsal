@@ -13,11 +13,10 @@ import {
   View,
 } from 'react-native';
 import {
-  assertiveColor, BLOCK_META, displayHeadline, displayIssueSummary,
-  resolveInsights, STYLE_METERS, STYLES_INTRO,
+  assertiveColor, displayHeadline, displayIssueSummary,
+  resolveInsights, STYLE_METERS,
 } from './shared/insightsView.js';
 import { configureCoachSpeech, speakCoachText, stopCoachSpeech } from './shared/coachSpeech.js';
-import { StylePieChart } from './shared/StylePieChart.js';
 
 // When testing on a physical device, change this to your machine's local IP.
 // e.g. 'http://192.168.1.42:4000'
@@ -439,100 +438,82 @@ function CallScreen({ person, conversation, messages, setMessages, onEnd }) {
   );
 }
 
+const HORSEMAN_INTRO = {
+  critical: 'This came across as a character attack rather than talking about the specific thing that happened:',
+  contemptuous: 'This came across as contempt — mockery or dismissal — which tends to shut conversations down:',
+  defensive: 'This came across as deflecting rather than engaging with what was said:',
+  stonewalling: 'This came across as shutting down instead of staying in the conversation:',
+};
+
 function InsightsScreen({ conv, onHome, onTranscript }) {
-  const { styles, blocks, styleNotes } = resolveInsights(conv);
+  const { styles, blocks } = resolveInsights(conv);
   const summary = displayIssueSummary(conv);
+  const didWell = blocks.find(b => b.type === 'did_well' || b.type === 'went_well');
+  const horsemen = blocks.filter(b => !['did_well', 'went_well', 'legacy', 'good'].includes(b.type));
+  const isGood = horsemen.length === 0;
+  const dominant = STYLE_METERS.reduce((a, m) => styles[m.key] > styles[a.key] ? m : a, STYLE_METERS[0]);
+
   return (
     <View style={s.scr}>
       <View style={s.topbar}>
         <TouchableOpacity onPress={onHome} style={s.iconbtn}>
-          <Text style={{ color: 'rgba(255,255,255,.6)', fontSize: 16 }}>⌂</Text>
+          <Text style={{ color: 'rgba(255,255,255,.6)', fontSize: 16 }}>{'⌂'}</Text>
         </TouchableOpacity>
       </View>
+      <Text style={s.insCoachLine}>
+        {isGood ? 'You\'re ready. Good work.' : 'Good work. A few things to keep in mind.'}
+      </Text>
       <Text style={s.convTtl}>{displayHeadline(conv)}</Text>
       {summary ? <Text style={s.convSummary}>{summary}</Text> : null}
-      <Text style={s.convMeta}>
-        with {conv.person_name || ''} · {conv.duration} · {conv.created_at?.slice(0, 10)}
-      </Text>
+      <Text style={s.convMeta}>{'with ' + (conv.person_name || '') + ' · ' + conv.duration}</Text>
       <ScrollView style={{ flex: 1 }}>
-        <Text style={s.stylesIntro}>{STYLES_INTRO}</Text>
-        <Text style={s.stylesRef}>
-          Tap a slice or label to see quotes from your call (SCCR communication styles).
-        </Text>
-        <StylePieChart styles={styles} styleNotes={styleNotes} meters={STYLE_METERS} />
-        <Text style={s.label}>INSIGHTS</Text>
-        {blocks.map((block, i) => (
-          <InsightBlock key={i} block={block} />
-        ))}
+        {didWell && <DidWellSection block={didWell} />}
+        {horsemen.map((b, i) => <WatchOutSection key={i} block={b} />)}
+        <StyleNoteSection meter={dominant} value={styles[dominant.key]} />
         <TouchableOpacity onPress={onTranscript} style={s.viewTx}>
-          <Text style={s.viewTxTx}>View full transcript →</Text>
+          <Text style={s.viewTxTx}>See full transcript</Text>
         </TouchableOpacity>
       </ScrollView>
     </View>
   );
 }
 
-function DidWellBlock({ block }) {
-  const meta = BLOCK_META.did_well;
-  const instances =
-    block.instances ||
-    (block.quote ? [{ quote: block.quote, why: block.why }] : []);
+function DidWellSection({ block }) {
+  const instances = block.instances || (block.quote ? [{ quote: block.quote, why: block.why }] : []);
   return (
-    <View style={s.icard}>
-      <View style={s.icardH}>
-        <View style={[s.dot, { backgroundColor: meta.color }]} />
-        <Text style={[s.icardT, { color: meta.color }]}>{meta.title}</Text>
-      </View>
+    <View style={s.insSection}>
+      <Text style={s.insSectionLbl}>What you did well</Text>
       {instances.map((inst, i) => (
-        <View key={i} style={i > 0 ? s.didWellItem : undefined}>
-          <Text style={s.icardQuote}>“{inst.quote}”</Text>
-          {inst.why ? <Text style={s.icardB}>{inst.why}</Text> : null}
+        <View key={i} style={i > 0 ? s.insMoment : undefined}>
+          <Text style={s.insQuote}>{'“'}{inst.quote}{'”'}</Text>
+          {inst.why ? <Text style={s.insNote}>{inst.why}</Text> : null}
         </View>
       ))}
     </View>
   );
 }
 
-function InsightBlock({ block }) {
-  if (block.type === 'legacy') {
-    return (
-      <>
-        {block.tend ? <InsightCard color="#e8a23d" title="You tend to…" body={block.tend} /> : null}
-        {block.try ? <InsightCard color="#b8a0d4" title="Try to…" body={block.try} /> : null}
-        {block.used ? <InsightCard color="#9b8cf0" title="You used…" body={block.used} /> : null}
-      </>
-    );
-  }
-  if (block.type === 'did_well' || block.type === 'went_well') {
-    return <DidWellBlock block={block} />;
-  }
-  const meta = BLOCK_META[block.type] || { title: block.type, color: '#b8a0d4' };
+function WatchOutSection({ block }) {
   return (
-    <View style={s.icard}>
-      <View style={s.icardH}>
-        <View style={[s.dot, { backgroundColor: meta.color }]} />
-        <Text style={[s.icardT, { color: meta.color }]}>{meta.title}</Text>
-      </View>
-      <Text style={s.icardQuote}>“{block.quote}”</Text>
-      {block.why ? <Text style={s.icardB}>{block.why}</Text> : null}
+    <View style={[s.insSection, s.insSectionWarn]}>
+      <Text style={s.insSectionLbl}>Watch out for this</Text>
+      <Text style={s.insNote}>{HORSEMAN_INTRO[block.type] || 'Watch out for this pattern:'}</Text>
+      <Text style={s.insQuote}>{'“'}{block.quote}{'”'}</Text>
       {block.instead ? (
-        <View style={s.icardInstead}>
-          <Text style={s.icardInsteadLbl}>Try instead</Text>
-          <Text style={s.icardInsteadTx}>“{block.instead}”</Text>
+        <View style={s.insInstead}>
+          <Text style={s.insInsteadTx}>Try instead — {'“'}{block.instead}{'”'}</Text>
         </View>
       ) : null}
     </View>
   );
 }
 
-function InsightCard({ color, title, body }) {
+function StyleNoteSection({ meter, value }) {
   return (
-    <View style={s.icard}>
-      <View style={s.icardH}>
-        <View style={[s.dot, { backgroundColor: color }]} />
-        <Text style={[s.icardT, { color }]}>{title}</Text>
-      </View>
-      <Text style={s.icardB}>{body}</Text>
+    <View style={s.insSection}>
+      <Text style={s.insSectionLbl}>How you came across</Text>
+      <Text style={[s.insStyleName, { color: meter.color }]}>{meter.label} ({value}%)</Text>
+      <Text style={s.insNote}>{meter.description}</Text>
     </View>
   );
 }
@@ -699,6 +680,16 @@ const s = StyleSheet.create({
   icardInsteadLbl: { fontSize: 10, textTransform: 'uppercase', letterSpacing: 0.5, color: '#6bc48a', fontWeight: '600', marginBottom: 4 },
   icardInsteadTx: { fontSize: 13, color: 'rgba(255,255,255,.75)', lineHeight: 20 },
   didWellItem: { marginTop: 12, paddingTop: 12, borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,.08)' },
+  insCoachLine: { fontSize: 17, fontWeight: '500', color: '#b8a0d4', paddingHorizontal: 24, paddingTop: 16, paddingBottom: 4, lineHeight: 24 },
+  insSection: { marginHorizontal: 24, marginTop: 12, backgroundColor: 'rgba(255,255,255,.04)', borderWidth: 1, borderColor: 'rgba(255,255,255,.08)', borderRadius: 14, padding: 14 },
+  insSectionWarn: { borderColor: 'rgba(228,77,77,.25)' },
+  insSectionLbl: { fontSize: 11, textTransform: 'uppercase', letterSpacing: 0.6, color: 'rgba(255,255,255,.35)', marginBottom: 10, fontWeight: '600' },
+  insMoment: { marginTop: 10, paddingTop: 10, borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,.08)' },
+  insQuote: { fontSize: 13, color: '#f0e6d3', fontStyle: 'italic', lineHeight: 20, marginBottom: 4 },
+  insNote: { fontSize: 13, color: 'rgba(255,255,255,.55)', lineHeight: 20, marginBottom: 6 },
+  insInstead: { marginTop: 10, paddingTop: 10, borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,.08)' },
+  insInsteadTx: { fontSize: 13, color: 'rgba(255,255,255,.75)', lineHeight: 20 },
+  insStyleName: { fontSize: 15, fontWeight: '600', marginBottom: 5 },
   viewTx: { marginHorizontal: 24, marginTop: 8, marginBottom: 18, padding: 13,
     backgroundColor: 'rgba(196,169,110,.1)', borderWidth: 1, borderColor: 'rgba(196,169,110,.25)', borderRadius: 12 },
   viewTxTx: { textAlign: 'center', fontSize: 13, color: '#c4a96e' },

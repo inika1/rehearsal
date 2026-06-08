@@ -98,6 +98,16 @@ body {
 .pie-detail-title { flex: 1; font-size: 14px; font-weight: 600; color: #f0e6d3; }
 .pie-detail-pct { font-size: 14px; font-weight: 700; }
 .ins-scroll { flex: 1; overflow-y: auto; padding-bottom: 16px; }
+.ins-coach-line { font-size: 17px; font-weight: 500; color: #b8a0d4; padding: 16px 24px 4px; line-height: 1.4; }
+.ins-section { margin: 12px 24px 0; background: rgba(255,255,255,.04); border: 1px solid rgba(255,255,255,.08); border-radius: 14px; padding: 14px 16px; }
+.ins-section-lbl { font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: rgba(255,255,255,.35); margin-bottom: 10px; font-weight: 600; }
+.ins-moment { margin-bottom: 10px; }
+.ins-moment:last-child { margin-bottom: 0; }
+.ins-quote { font-size: 13px; color: #f0e6d3; font-style: italic; line-height: 1.5; margin-bottom: 4px; }
+.ins-note { font-size: 13px; color: rgba(255,255,255,.55); line-height: 1.5; margin-bottom: 6px; }
+.ins-watchout { border-color: rgba(228,77,77,.25); }
+.ins-instead { margin-top: 10px; padding-top: 10px; border-top: 1px solid rgba(255,255,255,.08); font-size: 13px; color: rgba(255,255,255,.75); line-height: 1.5; }
+.ins-style-name { font-size: 15px; font-weight: 600; margin-bottom: 5px; }
 .meter { margin: 0 24px 16px; }
 .style-meter { margin-bottom: 20px; padding-bottom: 4px; border-bottom: 1px solid rgba(255,255,255,.06); }
 .style-meter:last-of-type { border-bottom: none; }
