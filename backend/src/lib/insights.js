@@ -114,7 +114,7 @@ export function styleNotesFromTranscript(transcript, styles) {
         instances: [
           {
             quote: m.content,
-            why: `This line contributed to your ${pct}% ${key.replace('_', '-')} score in this rehearsal.`,
+            why: `This line contributed to your ${pct}% ${key.replace('_', '-')} score in this session.`,
           },
         ],
       };
@@ -155,7 +155,7 @@ function pickDidWellInstance(item) {
   const why = (item.why || item.reason || item.explanation || '').trim();
   return {
     quote,
-    why: why || 'This came across positively in your rehearsal.',
+    why: why || 'This came across positively in your session.',
   };
 }
 
@@ -182,8 +182,8 @@ function didWellBlock(raw) {
     type: 'did_well',
     instances: [
       {
-        quote: 'Your effort in this rehearsal',
-        why: 'You showed up and practised having a difficult conversation, which is a real step forward.',
+        quote: 'Your effort in this session',
+        why: 'You showed up and worked through a difficult conversation, which is a real step forward.',
       },
     ],
   };
@@ -203,8 +203,8 @@ function pickIssueTitle(raw, situation) {
   const fromAi = (raw.issue_title || '').trim();
   if (fromAi) return toShortTitle(fromAi, 6);
   const sit = (situation || '').trim();
-  if (sit) return toShortTitle(sit, 5);
-  return 'Rehearsal';
+  if (sit) return toShortTitle(sit, 6);
+  return 'Conversation';
 }
 
 function pickIssueSummary(raw, situation) {
@@ -231,10 +231,14 @@ export function normalizeInsights(raw, transcript = [], situation = '') {
     (x) => x.block
   );
 
-  const blocks = [
-    ...horsemen.map(({ key, block }) => ({ type: key, ...block })),
-    didWellBlock(raw),
-  ];
+  const horsemanBlocks = horsemen
+    .map(({ key, block }) => ({ type: key, ...block }))
+    .slice(0, 3);
+  const didWell = didWellBlock(raw);
+  if (Array.isArray(didWell.instances)) {
+    didWell.instances = didWell.instances.slice(0, 2);
+  }
+  const blocks = [...horsemanBlocks, didWell];
 
   return { styles, styleNotes, blocks, issueTitle, issueSummary };
 }

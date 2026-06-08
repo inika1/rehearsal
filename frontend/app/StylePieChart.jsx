@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { buildStyleSlices, describeSliceArc } from './pieUtils.js';
 
 const SIZE = 220;
@@ -8,7 +8,21 @@ const CX = SIZE / 2;
 const CY = SIZE / 2;
 const R = SIZE / 2 - 6;
 
+function dominantStyleKey(styles, meters) {
+  let best = meters[0]?.key;
+  let bestVal = -1;
+  for (const m of meters) {
+    const v = styles[m.key] ?? 0;
+    if (v > bestVal) {
+      bestVal = v;
+      best = m.key;
+    }
+  }
+  return best;
+}
+
 function StyleDetail({ meter, note, pct }) {
+  const instances = note?.instances || [];
   return (
     <div className="pie-detail">
       <div className="pie-detail-head">
@@ -17,19 +31,32 @@ function StyleDetail({ meter, note, pct }) {
         <span className="pie-detail-pct" style={{ color: meter.color }}>{pct}%</span>
       </div>
       <p className="style-desc">{meter.description}</p>
-      {(note?.instances || []).map((inst, i) => (
+      {instances.map((inst, i) => (
         <div key={i} className={i > 0 ? 'style-instance' : 'style-instance-first'}>
-          <div className="style-example">From your call: “{inst.quote}”</div>
+          <div className="style-example">“{inst.quote}”</div>
           {inst.why && <div className="style-reason">{inst.why}</div>}
         </div>
       ))}
+      {!instances.length && (
+        <div className="style-reason">No clear examples for this style in your messages.</div>
+      )}
     </div>
   );
 }
 
 export function StylePieChart({ styles, styleNotes, meters }) {
   const slices = useMemo(() => buildStyleSlices(styles, meters), [styles, meters]);
-  const [selected, setSelected] = useState(slices[0]?.key || meters[0]?.key);
+  const defaultKey = useMemo(() => dominantStyleKey(styles, meters), [styles, meters]);
+  const [selected, setSelected] = useState(defaultKey);
+  const activeMeters = useMemo(
+    () => meters.filter((m) => (styles[m.key] ?? 0) > 0),
+    [meters, styles]
+  );
+
+  useEffect(() => {
+    setSelected(defaultKey);
+  }, [defaultKey]);
+
   const meter = meters.find((m) => m.key === selected) || meters[0];
   const pct = styles[selected] ?? 0;
 
@@ -42,7 +69,7 @@ export function StylePieChart({ styles, styleNotes, meters }) {
               key={slice.key}
               d={describeSliceArc(CX, CY, R, slice.startAngle, slice.endAngle)}
               fill={slice.color}
-              opacity={selected === slice.key ? 1 : 0.78}
+              opacity={selected === slice.key ? 1 : 0.82}
               className="pie-slice"
               onClick={() => setSelected(slice.key)}
             />
@@ -54,7 +81,7 @@ export function StylePieChart({ styles, styleNotes, meters }) {
         </div>
       </div>
       <div className="pie-legend">
-        {meters.map((m) => (
+        {activeMeters.map((m) => (
           <button
             key={m.key}
             type="button"

@@ -112,7 +112,7 @@ jobs:
       - name: Deploy to Railway
         run: |
           for i in 1 2 3; do
-            railway up --detach --service Rehearsal && break
+            railway up --detach --service Bridge && break
             echo "Attempt $i failed, retrying in 15s..."
             sleep 15
           done

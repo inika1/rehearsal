@@ -1,6 +1,6 @@
 import './globals.css';
 
-export const metadata = { title: 'Rehearsal' };
+export const metadata = { title: 'Bridge' };
 
 export default function RootLayout({ children }) {
   return (

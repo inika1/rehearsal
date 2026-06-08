@@ -76,7 +76,7 @@ export default function App() {
   return (
     <div className="stage">
       <div className="phone"><div className="phone-in">
-        <div className="statusbar"><span>9:41</span><span className="brand">Rehearsal</span><span>●●●</span></div>
+        <div className="statusbar"><span>9:41</span><span className="brand">Bridge</span><span>●●●</span></div>
 
         {screen === 'choose' && (
           <ChooseScreen people={people} onPick={pickPerson} onAdd={addPerson} />
@@ -135,7 +135,7 @@ function DescribeScreen({ person, situation, setSituation, onStart, onBack, onHi
       <div className="callbtn" onClick={onStart}>
         <svg width="32" height="32" viewBox="0 0 24 24" fill="none"><path d="M6.5 3h3l1.5 4.5L9 9.5a12 12 0 005.5 5.5l2-2 4.5 1.5v3a2 2 0 01-2 2A16 16 0 014 5a2 2 0 012-2z" stroke="#0e0e1a" strokeWidth="2" strokeLinejoin="round" /></svg>
       </div>
-      <div className="calltext">Tap to start the rehearsal call</div>
+      <div className="calltext">Tap to start your coaching session</div>
       <div className="prev" onClick={onHistory}>↺ Previous conversations</div>
     </div>
   );
@@ -349,7 +349,7 @@ function TranscriptScreen({ conv, messages, onBack, onNew }) {
         ))}
       </div>
       <button className="cta" onClick={onBack}>Back to insights</button>
-      <button className="cta ghost" onClick={onNew}>New rehearsal</button>
+      <button className="cta ghost" onClick={onNew}>New conversation</button>
     </div>
   );
 }
@@ -359,9 +359,9 @@ function HistoryScreen({ history, person, onOpen, onBack }) {
     <div className="scr">
       <div className="hd"><div className="back" onClick={onBack}>‹ Back</div>
         <div className="ttl" style={{ fontSize: 19 }}>{person ? `With ${person.name}` : 'Previous conversations'}</div>
-        <div className="sub">Your past rehearsals</div></div>
+        <div className="sub">Your past conversations</div></div>
       <div className="hist">
-        {history.length === 0 && <div className="empty">{person ? `No rehearsals with ${person.name} yet.` : 'No rehearsals yet — finish a call to see it here.'}</div>}
+        {history.length === 0 && <div className="empty">{person ? `No conversations with ${person.name} yet.` : 'No conversations yet — finish a session to see it here.'}</div>}
         {history.map((c, i) => (
           <div className="hrow" key={c.id} onClick={() => onOpen(c.id)}>
             <div className="hav" style={{ background: colorFor(i) + '2e', color: colorFor(i) }}>{c.person_name[0]}</div>

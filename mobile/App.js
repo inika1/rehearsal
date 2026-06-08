@@ -233,7 +233,7 @@ function DescribeScreen({ person, situation, setSituation, onStart, onBack, onHi
       <TouchableOpacity onPress={onStart} style={s.callbtn}>
         <Text style={{ fontSize: 28 }}>📞</Text>
       </TouchableOpacity>
-      <Text style={s.calltext}>Tap to start the rehearsal call</Text>
+      <Text style={s.calltext}>Tap to start your coaching session</Text>
       <TouchableOpacity onPress={onHistory} style={s.prev}>
         <Text style={s.prevTx}>↺  Previous conversations</Text>
       </TouchableOpacity>
@@ -446,7 +446,7 @@ const HORSEMAN_INTRO = {
 };
 
 function InsightsScreen({ conv, onHome, onTranscript }) {
-  const { styles, blocks } = resolveInsights(conv);
+  const { styles, horseman, didWell, legacy } = resolveInsights(conv);
   const summary = displayIssueSummary(conv);
   const didWell = blocks.find(b => b.type === 'did_well' || b.type === 'went_well');
   const horsemen = blocks.filter(b => !['did_well', 'went_well', 'legacy', 'good'].includes(b.type));
@@ -540,7 +540,7 @@ function TranscriptScreen({ conv, messages, onBack, onNew }) {
         <Text style={s.ctaTx}>Back to insights</Text>
       </TouchableOpacity>
       <TouchableOpacity onPress={onNew} style={[s.cta, s.ctaGhost]}>
-        <Text style={s.ctaGhostTx}>New rehearsal</Text>
+        <Text style={s.ctaGhostTx}>New conversation</Text>
       </TouchableOpacity>
     </View>
   );
@@ -554,14 +554,14 @@ function HistoryScreen({ history, person, onOpen, onBack }) {
           <Text style={s.back}>‹ Back</Text>
         </TouchableOpacity>
         <Text style={s.ttl}>{person ? `With ${person.name}` : 'Previous conversations'}</Text>
-        <Text style={s.sub}>Your past rehearsals</Text>
+        <Text style={s.sub}>Your past conversations</Text>
       </View>
       <ScrollView style={s.hist}>
         {history.length === 0 && (
           <Text style={s.empty}>
             {person
-              ? `No rehearsals with ${person.name} yet.`
-              : 'No rehearsals yet — finish a call to see it here.'}
+              ? `No conversations with ${person.name} yet.`
+              : 'No conversations yet — finish a session to see it here.'}
           </Text>
         )}
         {history.map((c, i) => (
@@ -654,11 +654,20 @@ const s = StyleSheet.create({
     borderWidth: 1, borderColor: 'rgba(255,255,255,.1)', alignItems: 'center', justifyContent: 'center' },
   convTtl: { fontSize: 21, fontWeight: '600', color: '#f0e6d3', paddingHorizontal: 24, paddingTop: 10, paddingBottom: 4 },
   convSummary: { fontSize: 13, lineHeight: 19, color: 'rgba(255,255,255,.55)', paddingHorizontal: 24, paddingBottom: 6 },
-  convMeta: { fontSize: 12, color: 'rgba(255,255,255,.35)', paddingHorizontal: 24, paddingBottom: 14 },
+  convMeta: { fontSize: 12, color: 'rgba(255,255,255,.35)', paddingHorizontal: 24, paddingBottom: 10 },
+  sectionLabel: {
+    fontSize: 11,
+    fontWeight: '600',
+    textTransform: 'uppercase',
+    letterSpacing: 0.8,
+    color: 'rgba(255,255,255,.35)',
+    paddingHorizontal: 24,
+    marginTop: 8,
+    marginBottom: 6,
+  },
   meter: { marginHorizontal: 24, marginBottom: 16 },
   styleMeter: { marginHorizontal: 24, marginBottom: 20, paddingBottom: 12, borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,.06)' },
-  stylesIntro: { marginHorizontal: 24, marginBottom: 8, fontSize: 12, lineHeight: 18, color: 'rgba(255,255,255,.45)' },
-  stylesRef: { marginHorizontal: 24, marginBottom: 14, fontSize: 11, lineHeight: 16, color: '#9b8cf0' },
+  stylesIntro: { marginHorizontal: 24, marginBottom: 10, fontSize: 12, lineHeight: 18, color: 'rgba(255,255,255,.4)' },
   styleDesc: { fontSize: 11, lineHeight: 16, color: 'rgba(255,255,255,.4)', marginBottom: 8 },
   styleInstanceFirst: { marginTop: 8 },
   styleInstance: { marginTop: 10, paddingTop: 10, borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,.06)' },

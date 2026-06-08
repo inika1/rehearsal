@@ -1,6 +1,6 @@
-# Rehearsal
+# Bridge
 
-Mobile app (Expo/React Native) + Express API backend.
+Prep for difficult conversations with a guided coaching session. Mobile app (Expo/React Native) + Express API backend.
 
 ```
 mobile/    Expo app            -> App Store / Play Store

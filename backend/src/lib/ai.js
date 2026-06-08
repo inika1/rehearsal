@@ -117,8 +117,8 @@ function mockDidWellInstances(myTurns) {
     return {
       instances: [
         {
-          quote: 'Your effort in this rehearsal',
-          why: 'You showed up and practised instead of avoiding the conversation.',
+          quote: 'Your effort in this session',
+          why: 'You showed up and worked through it instead of avoiding the conversation.',
         },
       ],
     };
@@ -191,8 +191,8 @@ export async function analyse(person, situation, transcript) {
   if (!API_KEY) return mockAnalyse(transcript, situation);
 
   const system =
-    `You are a communication coach analysing a rehearsal transcript (Gottman + assertiveness). ` +
-    `The user practised: "${situation}" with ${person.name}. ` +
+    `You are a communication coach analysing a coaching session transcript (Gottman + assertiveness). ` +
+    `The user prepared for: "${situation}" with ${person.name}. ` +
     `Analyse ONLY what the user said (lines marked User). ` +
     `Estimate how much of the user's communication was passive (avoids confrontation, accommodates others), ` +
     `aggressive (forceful, win-focused), passive-aggressive (indirect hostility, sarcasm, avoidance), ` +
@@ -228,7 +228,7 @@ export async function analyse(person, situation, transcript) {
       did_well: {
         instances: [
           {
-            quote: 'Your messages in this rehearsal',
+            quote: 'Your messages in this session',
             why: 'You stayed constructive overall and are building readiness for the real conversation.',
           },
         ],
