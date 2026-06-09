@@ -12,11 +12,11 @@ import {
   Text, TextInput, TouchableOpacity,
   View,
 } from 'react-native';
+import { configureCoachSpeech, speakCoachText, stopCoachSpeech } from './shared/coachSpeech.js';
 import {
   assertiveColor, displayHeadline, displayIssueSummary,
   resolveInsights, STYLE_METERS,
 } from './shared/insightsView.js';
-import { configureCoachSpeech, speakCoachText, stopCoachSpeech } from './shared/coachSpeech.js';
 
 // When testing on a physical device, change this to your machine's local IP.
 // e.g. 'http://192.168.1.42:4000'
