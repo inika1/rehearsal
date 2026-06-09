@@ -24,7 +24,11 @@ import {
 const API = 'https://rehearsal-production-5d15.up.railway.app';
 const SPEECH_SILENCE_MS = 3000;
 
-const j = (r) => r.json();
+const j = async (r) => {
+  const data = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(data?.error || `Request failed: ${r.status}`);
+  return data;
+};
 const api = {
   getPeople: () => fetch(`${API}/api/people`).then(j),
   addPerson: (name, relationship) =>
@@ -104,7 +108,9 @@ export default function App() {
 
   const endCall = async (duration, hasInput) => {
     if (!hasInput) {
-      await api.deleteConversation(conversation.id).catch(() => {});
+      await api.deleteConversation(conversation.id).catch((err) => {
+        console.warn('Failed to delete empty conversation', err.message);
+      });
       setConversation(null);
       setNoInput(true);
       setScreen('insights');
@@ -118,22 +124,34 @@ export default function App() {
 
   const deleteConv = async () => {
     if (!conversation) return;
-    await api.deleteConversation(conversation.id).catch(() => {});
-    setConversation(null);
-    setScreen('choose');
+    try {
+      await api.deleteConversation(conversation.id);
+      setConversation(null);
+      setScreen('choose');
+    } catch (err) {
+      Alert.alert('Could not delete conversation', err.message);
+    }
   };
 
   const deleteContact = async () => {
     if (!person) return;
-    await api.deletePerson(person.id).catch(() => {});
-    setPeople((ps) => ps.filter((p) => p.id !== person.id));
-    setPerson(null);
-    setScreen('choose');
+    try {
+      await api.deletePerson(person.id);
+      setPeople((ps) => ps.filter((p) => p.id !== person.id));
+      setPerson(null);
+      setScreen('choose');
+    } catch (err) {
+      Alert.alert('Could not delete contact', err.message);
+    }
   };
 
   const deleteHistoryConv = async (id) => {
-    await api.deleteConversation(id).catch(() => {});
-    setHistory((h) => h.filter((c) => c.id !== id));
+    try {
+      await api.deleteConversation(id);
+      setHistory((h) => h.filter((c) => c.id !== id));
+    } catch (err) {
+      Alert.alert('Could not delete conversation', err.message);
+    }
   };
 
   const openHistory = async () => {

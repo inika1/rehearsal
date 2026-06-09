@@ -29,8 +29,32 @@ router.post('/', async (req, res) => {
 // DELETE /api/people/:id  (cascades to conversations + messages)
 router.delete('/:id', async (req, res) => {
   const { id } = req.params;
-  const { error } = await supabase.from('people').delete().eq('id', id);
-  if (error) return res.status(500).json({ error: error.message });
+  const { data: conversations, error: conversationLookupError } = await supabase
+    .from('conversations')
+    .select('id')
+    .eq('person_id', id);
+  if (conversationLookupError) {
+    return res.status(500).json({ error: conversationLookupError.message });
+  }
+
+  const conversationIds = conversations.map((conversation) => conversation.id);
+  if (conversationIds.length) {
+    const { error: messageError } = await supabase
+      .from('messages')
+      .delete()
+      .in('conversation_id', conversationIds);
+    if (messageError) return res.status(500).json({ error: messageError.message });
+
+    const { error: conversationError } = await supabase
+      .from('conversations')
+      .delete()
+      .eq('person_id', id);
+    if (conversationError) return res.status(500).json({ error: conversationError.message });
+  }
+
+  const { error: personError } = await supabase.from('people').delete().eq('id', id);
+  if (personError) return res.status(500).json({ error: personError.message });
+
   res.json({ ok: true });
 });
 

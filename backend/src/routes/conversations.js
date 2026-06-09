@@ -112,8 +112,18 @@ router.post('/:id/turn', async (req, res) => {
 // DELETE /api/conversations/:id  (cascades to messages)
 router.delete('/:id', async (req, res) => {
   const { id } = req.params;
-  const { error } = await supabase.from('conversations').delete().eq('id', id);
-  if (error) return res.status(500).json({ error: error.message });
+  const { error: messageError } = await supabase
+    .from('messages')
+    .delete()
+    .eq('conversation_id', id);
+  if (messageError) return res.status(500).json({ error: messageError.message });
+
+  const { error: conversationError } = await supabase
+    .from('conversations')
+    .delete()
+    .eq('id', id);
+  if (conversationError) return res.status(500).json({ error: conversationError.message });
+
   res.json({ ok: true });
 });
 
