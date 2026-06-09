@@ -26,4 +26,12 @@ router.post('/', async (req, res) => {
   res.json(data);
 });
 
+// DELETE /api/people/:id  (cascades to conversations + messages)
+router.delete('/:id', async (req, res) => {
+  const { id } = req.params;
+  const { error } = await supabase.from('people').delete().eq('id', id);
+  if (error) return res.status(500).json({ error: error.message });
+  res.json({ ok: true });
+});
+
 export default router;

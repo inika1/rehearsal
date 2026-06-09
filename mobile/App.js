@@ -2,6 +2,7 @@ import { ExpoSpeechRecognitionModule, useSpeechRecognitionEvent } from 'expo-spe
 import { StatusBar } from 'expo-status-bar';
 import { useEffect, useRef, useState } from 'react';
 import {
+  Alert,
   Animated, Easing,
   KeyboardAvoidingView,
   Modal,
@@ -53,6 +54,10 @@ const api = {
   history: (personId) =>
     fetch(`${API}/api/conversations${personId ? `?person_id=${personId}` : ''}`).then(j),
   getConversation: (id) => fetch(`${API}/api/conversations/${id}`).then(j),
+  deleteConversation: (id) =>
+    fetch(`${API}/api/conversations/${id}`, { method: 'DELETE' }).then(j),
+  deletePerson: (id) =>
+    fetch(`${API}/api/people/${id}`, { method: 'DELETE' }).then(j),
 };
 
 const AVATAR_COLORS = ['#c4a96e', '#b8a0d4', '#9b8cf0', '#e8a23d', '#3ec46a'];
@@ -70,6 +75,7 @@ export default function App() {
   const [addingPerson, setAddingPerson] = useState(false);
   const [newName, setNewName] = useState('');
   const [newRel, setNewRel] = useState('');
+  const [noInput, setNoInput] = useState(false);
 
   useEffect(() => {
     configureCoachSpeech(API);
@@ -96,10 +102,38 @@ export default function App() {
     setScreen('call');
   };
 
-  const endCall = async (duration) => {
+  const endCall = async (duration, hasInput) => {
+    if (!hasInput) {
+      await api.deleteConversation(conversation.id).catch(() => {});
+      setConversation(null);
+      setNoInput(true);
+      setScreen('insights');
+      return;
+    }
+    setNoInput(false);
     const updated = await api.finish(conversation.id, duration);
     setConversation(updated);
     setScreen('insights');
+  };
+
+  const deleteConv = async () => {
+    if (!conversation) return;
+    await api.deleteConversation(conversation.id).catch(() => {});
+    setConversation(null);
+    setScreen('choose');
+  };
+
+  const deleteContact = async () => {
+    if (!person) return;
+    await api.deletePerson(person.id).catch(() => {});
+    setPeople((ps) => ps.filter((p) => p.id !== person.id));
+    setPerson(null);
+    setScreen('choose');
+  };
+
+  const deleteHistoryConv = async (id) => {
+    await api.deleteConversation(id).catch(() => {});
+    setHistory((h) => h.filter((c) => c.id !== id));
   };
 
   const openHistory = async () => {
@@ -159,15 +193,18 @@ export default function App() {
       )}
       {screen === 'describe' && (
         <DescribeScreen person={person} situation={situation} setSituation={setSituation}
-          onStart={startCall} onBack={() => setScreen('choose')} onHistory={openHistory} />
+          onStart={startCall} onBack={() => setScreen('choose')} onHistory={openHistory}
+          onDeletePerson={deleteContact} />
       )}
       {screen === 'call' && (
         <CallScreen person={person} conversation={conversation}
           messages={messages} setMessages={setMessages} onEnd={endCall} />
       )}
-      {screen === 'insights' && conversation && (
-        <InsightsScreen conv={conversation} onHome={() => setScreen('choose')}
-          onTranscript={() => setScreen('transcript')} />
+      {screen === 'insights' && (
+        <InsightsScreen conv={conversation} noInput={noInput}
+          onHome={() => { setNoInput(false); setScreen('choose'); }}
+          onTranscript={() => setScreen('transcript')}
+          onDeleteConversation={deleteConv} />
       )}
       {screen === 'transcript' && (
         <TranscriptScreen conv={conversation} messages={messages}
@@ -175,7 +212,8 @@ export default function App() {
       )}
       {screen === 'history' && (
         <HistoryScreen history={history} person={person}
-          onOpen={openConversation} onBack={() => { setSituation(''); setScreen('describe'); }} />
+          onOpen={openConversation} onBack={() => { setSituation(''); setScreen('describe'); }}
+          onDeleteConversation={deleteHistoryConv} />
       )}
     </SafeAreaView>
   );
@@ -218,7 +256,7 @@ function ChooseScreen({ people, onPick, onAdd }) {
   );
 }
 
-function DescribeScreen({ person, situation, setSituation, onStart, onBack, onHistory }) {
+function DescribeScreen({ person, situation, setSituation, onStart, onBack, onHistory, onDeletePerson }) {
   return (
     <KeyboardAvoidingView style={s.scr} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
       <TouchableOpacity onPress={onBack} style={s.backRow}>
@@ -249,6 +287,19 @@ function DescribeScreen({ person, situation, setSituation, onStart, onBack, onHi
 
         <TouchableOpacity onPress={onHistory} style={s.prev}>
           <Text style={s.prevTx}>↺  Previous conversations</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          onPress={() => Alert.alert(
+            'Delete contact',
+            `Remove ${person.name} and all their conversations?`,
+            [
+              { text: 'Cancel', style: 'cancel' },
+              { text: 'Delete', style: 'destructive', onPress: onDeletePerson },
+            ]
+          )}
+          style={s.deleteContact}
+        >
+          <Text style={s.deleteContactTx}>Delete contact</Text>
         </TouchableOpacity>
       </View>
 
@@ -296,6 +347,8 @@ function CallScreen({ person, conversation, messages, setMessages, onEnd }) {
   const activeRef = useRef(true);
   const sendRef = useRef(null);
   const secsRef = useRef(0);
+  const messagesRef = useRef(messages);
+  useEffect(() => { messagesRef.current = messages; }, [messages]);
   const silenceTimer = useRef(null);
   const pendingTextRef = useRef('');
   const recognitionBaseText = useRef('');
@@ -406,7 +459,7 @@ function CallScreen({ person, conversation, messages, setMessages, onEnd }) {
     setBusy(false);
     if (done) {
       stopCallAudio({ updateState: false });
-      setTimeout(() => onEnd(fmt(secsRef.current)), 2000);
+      setTimeout(() => onEnd(fmt(secsRef.current), true), 2000);
     }
   };
   sendRef.current = sendText;
@@ -528,7 +581,7 @@ function CallScreen({ person, conversation, messages, setMessages, onEnd }) {
 
       <TouchableOpacity onPress={() => {
         stopCallAudio();
-        onEnd(fmt(secs));
+        onEnd(fmt(secs), messagesRef.current.some((m) => m.role === 'me'));
       }} style={s.endBtn}>
         <Text style={s.endBtnTx}>📞</Text>
       </TouchableOpacity>
@@ -544,7 +597,30 @@ const HORSEMAN_INTRO = {
   stonewalling: 'You sounded like you were shutting down instead of staying in the conversation:',
 };
 
-function InsightsScreen({ conv, onHome, onTranscript }) {
+function InsightsScreen({ conv, noInput, onHome, onTranscript, onDeleteConversation }) {
+  if (noInput) {
+    return (
+      <View style={s.scr}>
+        <View style={s.topbar}>
+          <TouchableOpacity onPress={onHome} style={s.iconbtn}>
+            <Text style={{ color: 'rgba(0,0,0,.5)', fontSize: 20 }}>{'⌂'}</Text>
+          </TouchableOpacity>
+        </View>
+        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 40 }}>
+          <Text style={{ fontSize: 22, fontWeight: '700', color: '#111827', textAlign: 'center', marginBottom: 12 }}>
+            No input provided
+          </Text>
+          <Text style={{ fontSize: 14, color: 'rgba(0,0,0,.4)', textAlign: 'center', lineHeight: 22 }}>
+            Nothing was said during this session. This conversation hasn't been saved.
+          </Text>
+        </View>
+        <TouchableOpacity onPress={onHome} style={[s.cta, { marginHorizontal: 24, marginBottom: 32 }]}>
+          <Text style={s.ctaTx}>Go home</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
+
   const { styles, horseman, didWell, styleNotes } = resolveInsights(conv);
   const summary = displayIssueSummary(conv);
   const horsemen = horseman || [];
@@ -569,6 +645,19 @@ function InsightsScreen({ conv, onHome, onTranscript }) {
         {didWell && <DidWellSection block={didWell} />}
         {horsemen.map((b, i) => <WatchOutSection key={i} block={b} />)}
         <StyleNoteSection meter={dominant} value={styles[dominant.key]} instances={dominantNotes} />
+        <TouchableOpacity
+          onPress={() => Alert.alert(
+            'Delete conversation',
+            'This will permanently remove this conversation and cannot be undone.',
+            [
+              { text: 'Cancel', style: 'cancel' },
+              { text: 'Delete', style: 'destructive', onPress: onDeleteConversation },
+            ]
+          )}
+          style={s.deleteConvBtn}
+        >
+          <Text style={s.deleteConvTx}>Delete conversation</Text>
+        </TouchableOpacity>
         <View style={{ height: 12 }} />
       </ScrollView>
       <TouchableOpacity onPress={onTranscript} style={s.viewTx}>
@@ -661,7 +750,7 @@ function TranscriptScreen({ conv, messages, onBack, onNew }) {
   );
 }
 
-function HistoryScreen({ history, person, onOpen, onBack }) {
+function HistoryScreen({ history, person, onOpen, onBack, onDeleteConversation }) {
   return (
     <View style={s.scr}>
       <View style={s.hd}>
@@ -693,6 +782,20 @@ function HistoryScreen({ history, person, onOpen, onBack }) {
                 {c.assertive ?? c.tension}%
               </Text>
             </View>
+            <TouchableOpacity
+              onPress={() => Alert.alert(
+                'Delete conversation',
+                'Remove this conversation?',
+                [
+                  { text: 'Cancel', style: 'cancel' },
+                  { text: 'Delete', style: 'destructive', onPress: () => onDeleteConversation(c.id) },
+                ]
+              )}
+              style={s.hdelBtn}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            >
+              <Text style={s.hdelTx}>✕</Text>
+            </TouchableOpacity>
           </TouchableOpacity>
         ))}
       </ScrollView>
@@ -888,6 +991,18 @@ const s = StyleSheet.create({
   htension: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 10, flexShrink: 0 },
   htensionTx: { fontSize: 11 },
   empty: { color: 'rgba(0,0,0,.4)', fontSize: 13, textAlign: 'center', paddingTop: 30, paddingHorizontal: 10 },
+
+  // Delete buttons
+  deleteContact: { marginTop: 10, padding: 14, backgroundColor: 'rgba(229,77,77,.06)',
+    borderRadius: 12, borderWidth: 1, borderColor: 'rgba(229,77,77,.22)', alignItems: 'center' },
+  deleteContactTx: { color: '#dc2626', fontSize: 13, fontWeight: '500' },
+  deleteConvBtn: { marginHorizontal: 24, marginTop: 20, marginBottom: 4, padding: 13,
+    borderRadius: 12, borderWidth: 1, borderColor: 'rgba(229,77,77,.22)',
+    backgroundColor: 'rgba(229,77,77,.05)', alignItems: 'center' },
+  deleteConvTx: { color: '#dc2626', fontSize: 13 },
+  hdelBtn: { width: 28, height: 28, borderRadius: 14, backgroundColor: 'rgba(229,77,77,.1)',
+    alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
+  hdelTx: { color: '#dc2626', fontSize: 12, fontWeight: '600' },
 
   // History header (re-uses hd styles so keep ttl/sub/back compatible)
 
