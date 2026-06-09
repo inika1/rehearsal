@@ -148,6 +148,7 @@ function CallScreen({ person, conversation, messages, setMessages, onEnd }) {
   const [busy, setBusy] = useState(false);
   const [listening, setListening] = useState(false);
   const timer = useRef(null);
+  const inputRef = useRef(null);
   const recog = useRef(null);
   const pendingText = useRef('');
   const recognitionBaseText = useRef('');
@@ -258,6 +259,13 @@ function CallScreen({ person, conversation, messages, setMessages, onEnd }) {
     }
   }, [busy, listening]);
 
+  useEffect(() => {
+    if (!inputRef.current) return;
+    inputRef.current.style.height = 'auto';
+    inputRef.current.style.height = `${Math.min(inputRef.current.scrollHeight, 96)}px`;
+    inputRef.current.scrollTop = inputRef.current.scrollHeight;
+  }, [input]);
+
   return (
     <div className="call-wrap">
       <div className="call-name">{person.name}</div>
@@ -273,10 +281,17 @@ function CallScreen({ person, conversation, messages, setMessages, onEnd }) {
         {busy && <div className="mini them">…</div>}
       </div>
       <div className="call-input">
-        <input value={input}
+        <textarea ref={inputRef}
+          value={input}
+          rows={1}
           placeholder={listening ? 'Listening…' : busy ? 'Coach is replying…' : 'Type or say something…'}
           onChange={(e) => setInput(e.target.value)}
-          onKeyDown={(e) => e.key === 'Enter' && !busy && send(input)} />
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' && !e.shiftKey && !busy) {
+              e.preventDefault();
+              send(input);
+            }
+          }} />
         <button onClick={() => send(input)}>↑</button>
       </div>
       <div className="endbtn" onClick={() => {

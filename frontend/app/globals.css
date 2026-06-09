@@ -66,11 +66,14 @@ body {
 .mini { max-width: 85%; font-size: 12px; padding: 7px 11px; border-radius: 12px; line-height: 1.4; }
 .mini.me { align-self: flex-end; background: rgba(196,169,110,.14); color: #f0e6d3; }
 .mini.them { align-self: flex-start; background: rgba(184,160,212,.1); color: rgba(255,255,255,.75); }
-.call-input { display: flex; gap: 8px; width: 100%; margin-bottom: 16px; }
-.call-input input { flex: 1; background: rgba(255,255,255,.06); border: 1px solid rgba(184,160,212,.25);
-  border-radius: 12px; padding: 11px 14px; color: #f0e6d3; font-size: 13px; outline: none; font-family: inherit; }
+.call-input { display: flex; align-items: flex-end; gap: 8px; width: 100%; margin-bottom: 16px; }
+.call-input textarea { flex: 1; min-height: 42px; max-height: 96px; overflow-y: auto; resize: none;
+  background: rgba(255,255,255,.06); border: 1px solid rgba(184,160,212,.25);
+  border-radius: 12px; padding: 11px 14px; color: #f0e6d3; font-size: 13px; line-height: 1.45;
+  outline: none; font-family: inherit; }
+.call-input textarea::placeholder { color: rgba(255,255,255,.3); }
 .call-input button { width: 42px; border-radius: 12px; border: none; background: #b8a0d4;
-  color: #0e0e1a; font-size: 16px; cursor: pointer; }
+  color: #0e0e1a; font-size: 16px; cursor: pointer; align-self: stretch; min-height: 42px; }
 .endbtn { width: 62px; height: 62px; border-radius: 50%; background: #e54d4d; display: flex;
   align-items: center; justify-content: center; cursor: pointer; box-shadow: 0 6px 18px rgba(229,77,77,.35); }
 .hint { font-size: 11px; color: rgba(255,255,255,.3); margin-top: 10px; }

@@ -266,6 +266,7 @@ function CallScreen({ person, conversation, messages, setMessages, onEnd }) {
   const [input, setInput] = useState('');
   const [busy, setBusy] = useState(false);
   const [listening, setListening] = useState(false);
+  const [inputHeight, setInputHeight] = useState(44);
   const timer = useRef(null);
   const scrollRef = useRef(null);
   const webRecognition = useRef(null);
@@ -386,6 +387,10 @@ function CallScreen({ person, conversation, messages, setMessages, onEnd }) {
     }
   }, [busy, listening]);
 
+  useEffect(() => {
+    if (!input) setInputHeight(44);
+  }, [input]);
+
   // Timer + speak opening coach message (audio prefetched when conversation started)
   useEffect(() => {
     timer.current = setInterval(() => setSecs((n) => { secsRef.current = n + 1; return n + 1; }), 1000);
@@ -436,7 +441,7 @@ function CallScreen({ person, conversation, messages, setMessages, onEnd }) {
       </ScrollView>
       <View style={s.callInput}>
         <TextInput
-          style={s.callInputField}
+          style={[s.callInputField, { height: inputHeight }]}
           value={input}
           placeholder={listening ? 'Listening…' : busy ? 'Coach is replying…' : 'Say something…'}
           placeholderTextColor={listening ? '#b8a0d4' : 'rgba(255,255,255,.3)'}
@@ -444,6 +449,14 @@ function CallScreen({ person, conversation, messages, setMessages, onEnd }) {
           onSubmitEditing={() => sendText(input.trim())}
           returnKeyType="send"
           editable={!listening && !busy}
+          multiline
+          scrollEnabled={inputHeight >= 96}
+          textAlignVertical="top"
+          blurOnSubmit
+          onContentSizeChange={(event) => {
+            const nextHeight = Math.min(Math.max(44, event.nativeEvent.contentSize.height + 8), 96);
+            setInputHeight(nextHeight);
+          }}
         />
         <TouchableOpacity onPress={() => sendText(input.trim())} style={s.sendBtn}>
           <Text style={s.sendBtnTx}>↑</Text>
