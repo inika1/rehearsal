@@ -344,14 +344,16 @@ function CallScreen({ person, conversation, messages, setMessages, onEnd }) {
     setInputHeight(44);
     let reply = '';
     let done = false;
+    let audioBase64 = null;
     try {
       const data = await api.sendTurn(conversation.id, text);
       reply = data?.reply || '';
       done = data?.done || false;
+      audioBase64 = data?.audio || null;
     } catch (_) {}
     if (!reply) reply = "Go on — tell me more.";
     setMessages((m) => [...m, { role: 'them', content: reply }]);
-    await speakCoachText(reply);
+    await speakCoachText(reply, { audioBase64 });
     busyRef.current = false;
     setBusy(false);
     if (done) {
