@@ -556,7 +556,7 @@ function InsightsScreen({ conv, onHome, onTranscript }) {
     <View style={s.scr}>
       <View style={s.topbar}>
         <TouchableOpacity onPress={onHome} style={s.iconbtn}>
-          <Text style={{ color: 'rgba(0,0,0,.5)', fontSize: 16 }}>{'⌂'}</Text>
+          <Text style={{ color: 'rgba(0,0,0,.5)', fontSize: 20 }}>{'⌂'}</Text>
         </TouchableOpacity>
       </View>
       <Text style={s.insCoachLine}>
@@ -569,10 +569,11 @@ function InsightsScreen({ conv, onHome, onTranscript }) {
         {didWell && <DidWellSection block={didWell} />}
         {horsemen.map((b, i) => <WatchOutSection key={i} block={b} />)}
         <StyleNoteSection meter={dominant} value={styles[dominant.key]} instances={dominantNotes} />
-        <TouchableOpacity onPress={onTranscript} style={s.viewTx}>
-          <Text style={s.viewTxTx}>See full transcript</Text>
-        </TouchableOpacity>
+        <View style={{ height: 12 }} />
       </ScrollView>
+      <TouchableOpacity onPress={onTranscript} style={s.viewTx}>
+        <Text style={s.viewTxTx}>See full transcript</Text>
+      </TouchableOpacity>
     </View>
   );
 }
@@ -794,12 +795,12 @@ const s = StyleSheet.create({
   hint: { fontSize: 11, color: 'rgba(0,0,0,.3)', marginTop: 10 },
 
   // Insights
-  topbar: { flexDirection: 'row', justifyContent: 'center', paddingHorizontal: 24, paddingTop: 6, paddingBottom: 2 },
-  iconbtn: { width: 34, height: 34, borderRadius: 10, backgroundColor: 'rgba(0,0,0,.05)',
+  topbar: { flexDirection: 'row', justifyContent: 'center', paddingHorizontal: 24, paddingTop: 12, paddingBottom: 6 },
+  iconbtn: { width: 46, height: 46, borderRadius: 13, backgroundColor: 'rgba(0,0,0,.05)',
     borderWidth: 1, borderColor: 'rgba(0,0,0,.08)', alignItems: 'center', justifyContent: 'center' },
-  convTtl: { fontSize: 21, fontWeight: '600', color: '#111827', paddingHorizontal: 24, paddingTop: 10, paddingBottom: 4 },
-  convSummary: { fontSize: 13, lineHeight: 19, color: 'rgba(0,0,0,.5)', paddingHorizontal: 24, paddingBottom: 6 },
-  convMeta: { fontSize: 12, color: 'rgba(0,0,0,.3)', paddingHorizontal: 24, paddingBottom: 10 },
+  convTtl: { fontSize: 21, fontWeight: '600', color: '#111827', paddingHorizontal: 24, paddingTop: 16, paddingBottom: 6 },
+  convSummary: { fontSize: 13, lineHeight: 19, color: 'rgba(0,0,0,.5)', paddingHorizontal: 24, paddingBottom: 10 },
+  convMeta: { fontSize: 12, color: 'rgba(0,0,0,.3)', paddingHorizontal: 24, paddingBottom: 16 },
   sectionLabel: {
     fontSize: 11,
     fontWeight: '600',
@@ -834,8 +835,8 @@ const s = StyleSheet.create({
   icardInsteadLbl: { fontSize: 10, textTransform: 'uppercase', letterSpacing: 0.5, color: '#3ec46a', fontWeight: '600', marginBottom: 4 },
   icardInsteadTx: { fontSize: 13, color: 'rgba(0,0,0,.7)', lineHeight: 20 },
   didWellItem: { marginTop: 12, paddingTop: 12, borderTopWidth: 1, borderTopColor: 'rgba(0,0,0,.08)' },
-  insCoachLine: { fontSize: 17, fontWeight: '500', color: '#1e3a8a', paddingHorizontal: 24, paddingTop: 16, paddingBottom: 4, lineHeight: 24 },
-  insSection: { marginHorizontal: 24, marginTop: 12, backgroundColor: '#ffffff', borderWidth: 1, borderColor: '#e5e7eb', borderRadius: 14, padding: 14 },
+  insCoachLine: { fontSize: 17, fontWeight: '500', color: '#1e3a8a', paddingHorizontal: 24, paddingTop: 20, paddingBottom: 6, lineHeight: 24 },
+  insSection: { marginHorizontal: 24, marginTop: 16, backgroundColor: '#ffffff', borderWidth: 1, borderColor: '#e5e7eb', borderRadius: 14, padding: 16 },
   insSectionWarn: { borderColor: 'rgba(229,77,77,.3)' },
   insSectionLbl: { fontSize: 11, textTransform: 'uppercase', letterSpacing: 0.6, color: 'rgba(0,0,0,.35)', marginBottom: 10, fontWeight: '600' },
   insMoment: { marginTop: 10, paddingTop: 10, borderTopWidth: 1, borderTopColor: 'rgba(0,0,0,.06)' },
@@ -844,7 +845,7 @@ const s = StyleSheet.create({
   insInstead: { marginTop: 10, paddingTop: 10, borderTopWidth: 1, borderTopColor: 'rgba(0,0,0,.08)' },
   insInsteadTx: { fontSize: 13, color: 'rgba(0,0,0,.7)', lineHeight: 20 },
   insStyleName: { fontSize: 15, fontWeight: '600', marginBottom: 5 },
-  viewTx: { marginHorizontal: 24, marginTop: 8, marginBottom: 18, padding: 13,
+  viewTx: { marginHorizontal: 24, marginTop: 12, marginBottom: 24, padding: 15,
     backgroundColor: 'rgba(196,169,110,.08)', borderWidth: 1, borderColor: 'rgba(196,169,110,.3)', borderRadius: 12 },
   viewTxTx: { textAlign: 'center', fontSize: 13, color: '#b8860b' },
 
