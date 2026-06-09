@@ -159,7 +159,20 @@ function CallScreen({ person, conversation, messages, setMessages, onEnd }) {
 
   const fmt = (s) => `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`;
 
+  const stopCallAudio = ({ updateState = true } = {}) => {
+    activeRef.current = false;
+    busyRef.current = false;
+    clearTimeout(silenceTimer.current);
+    silenceTimer.current = null;
+    pendingText.current = '';
+    recognitionBaseText.current = '';
+    if (updateState) setListening(false);
+    recog.current?.abort();
+    stopCoachSpeech();
+  };
+
   const scheduleSpeechSend = (text) => {
+    if (!activeRef.current) return;
     const trimmed = text.trim();
     if (!trimmed) return;
     pendingText.current = trimmed;
@@ -186,11 +199,13 @@ function CallScreen({ person, conversation, messages, setMessages, onEnd }) {
     setMessages((m) => [...m, { role: 'me', content: text }]);
     setInput('');
     const data = await api.sendTurn(conversation.id, text);
+    if (!activeRef.current) return;
     const reply = data?.reply;
     if (reply) {
       const speakPromise = speakCoachText(reply, { audioBase64: data?.audio });
       setMessages((m) => [...m, { role: 'them', content: reply }]);
       await speakPromise;
+      if (!activeRef.current) return;
     }
     busyRef.current = false;
     setBusy(false);
@@ -203,6 +218,7 @@ function CallScreen({ person, conversation, messages, setMessages, onEnd }) {
       busyRef.current = true;
       setBusy(true);
       speakCoachText(first.content, { audioBase64: conversation?.opening_audio }).then(() => {
+        if (!activeRef.current) return;
         busyRef.current = false;
         setBusy(false);
       });
@@ -226,8 +242,15 @@ function CallScreen({ person, conversation, messages, setMessages, onEnd }) {
     r.continuous = true;
     r.interimResults = true;
     r.lang = 'en-US';
-    r.onstart = () => setListening(true);
+    r.onstart = () => {
+      if (!activeRef.current) {
+        r.abort();
+        return;
+      }
+      setListening(true);
+    };
     r.onresult = (e) => {
+      if (!activeRef.current) return;
       let text = '';
       for (let i = 0; i < e.results.length; i++) text += e.results[i][0].transcript;
       text = `${recognitionBaseText.current}${text}`.trim();
@@ -236,14 +259,13 @@ function CallScreen({ person, conversation, messages, setMessages, onEnd }) {
     };
     r.onend = () => {
       setListening(false);
+      if (!activeRef.current) return;
       if (pendingText.current.trim() && !silenceTimer.current) scheduleSpeechSend(pendingText.current);
     };
     r.onerror = () => setListening(false);
     recog.current = r;
     return () => {
-      activeRef.current = false;
-      clearTimeout(silenceTimer.current);
-      r.abort();
+      stopCallAudio({ updateState: false });
     };
   }, []);
 
@@ -295,10 +317,7 @@ function CallScreen({ person, conversation, messages, setMessages, onEnd }) {
         <button onClick={() => send(input)}>↑</button>
       </div>
       <div className="endbtn" onClick={() => {
-        activeRef.current = false;
-        clearTimeout(silenceTimer.current);
-        recog.current?.abort();
-        stopCoachSpeech();
+        stopCallAudio();
         onEnd(fmt(secs));
       }}>
         <svg width="26" height="26" viewBox="0 0 24 24" fill="none"><path d="M6.5 3h3l1.5 4.5L9 9.5a12 12 0 005.5 5.5l2-2 4.5 1.5v3a2 2 0 01-2 2A16 16 0 014 5a2 2 0 012-2z" stroke="#fff" strokeWidth="2" strokeLinejoin="round" transform="rotate(135 12 12)" /></svg>
