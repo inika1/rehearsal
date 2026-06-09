@@ -116,7 +116,7 @@ export default function App() {
 
   return (
     <SafeAreaView style={s.root}>
-      <StatusBar style="light" />
+      <StatusBar style="dark" />
 
       <Modal visible={addingPerson} transparent animationType="fade">
         <View style={s.modalOverlay}>
@@ -125,7 +125,7 @@ export default function App() {
             <TextInput
               style={s.modalInput}
               placeholder="Name"
-              placeholderTextColor="rgba(255,255,255,.3)"
+              placeholderTextColor="rgba(0,0,0,.3)"
               value={newName}
               onChangeText={setNewName}
               autoFocus
@@ -133,7 +133,7 @@ export default function App() {
             <TextInput
               style={s.modalInput}
               placeholder="Relationship (e.g. flatmate)"
-              placeholderTextColor="rgba(255,255,255,.3)"
+              placeholderTextColor="rgba(0,0,0,.3)"
               value={newRel}
               onChangeText={setNewRel}
               onSubmitEditing={addPerson}
@@ -184,29 +184,36 @@ export default function App() {
 function ChooseScreen({ people, onPick, onAdd }) {
   return (
     <View style={s.scr}>
-      <View style={s.hd}>
+      <View style={s.choosePad}>
         <Text style={s.ttl}>Choose someone</Text>
         <Text style={s.sub}>Who do you need to talk to?</Text>
       </View>
 
-      <ScrollView contentContainerStyle={s.peopleScroll} style={{ flex: 1 }}>
-        <View style={s.people}>
+      <View style={s.chooseCard}>
+        <ScrollView bounces={false}>
           {people.map((p, i) => (
-            <TouchableOpacity key={p.id} onPress={() => onPick(p)} style={s.person}>
-              <View style={[s.pcircle, { backgroundColor: colorFor(i) + '2e' }]}> 
-                <Text style={[s.pcircleText, { color: colorFor(i) }]}>{p.name[0]}</Text>
+            <TouchableOpacity
+              key={p.id}
+              onPress={() => onPick(p)}
+              style={[s.personRow, i < people.length - 1 && s.personRowBorder]}
+            >
+              <View style={[s.radioCircle, { borderColor: colorFor(i) }]}>
+                <Text style={[s.radioInitial, { color: colorFor(i) }]}>{p.name[0]}</Text>
               </View>
-              <Text style={s.pname}>{p.name}</Text>
+              <View style={{ flex: 1 }}>
+                <Text style={s.personName}>{p.name}</Text>
+                {p.relationship ? (
+                  <Text style={s.personRel}>{p.relationship}</Text>
+                ) : null}
+              </View>
             </TouchableOpacity>
           ))}
-        </View>
-      </ScrollView>
-
-      <View style={s.footer}>
-        <TouchableOpacity onPress={onAdd} style={s.addnew}>
-          <Text style={s.addnewTx}>＋  Add new person</Text>
-        </TouchableOpacity>
+        </ScrollView>
       </View>
+
+      <TouchableOpacity onPress={onAdd} style={s.addnew}>
+        <Text style={s.addnewTx}>＋  Add new person</Text>
+      </TouchableOpacity>
     </View>
   );
 }
@@ -214,30 +221,45 @@ function ChooseScreen({ people, onPick, onAdd }) {
 function DescribeScreen({ person, situation, setSituation, onStart, onBack, onHistory }) {
   return (
     <KeyboardAvoidingView style={s.scr} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
-      <View style={s.hd}>
-        <TouchableOpacity onPress={onBack}>
-          <Text style={s.back}>‹ Back</Text>
+      <TouchableOpacity onPress={onBack} style={s.backRow}>
+        <Text style={s.back}>‹ Back</Text>
+      </TouchableOpacity>
+
+      <View style={s.describeCard}>
+        <View style={s.describeAvatar}>
+          <Text style={s.describeAvatarTx}>{person.name[0]}</Text>
+        </View>
+        <Text style={s.describeName}>{person.name}</Text>
+        {person.relationship ? (
+          <Text style={s.describeRel}>{person.relationship}</Text>
+        ) : null}
+
+        <View style={s.describeSection}>
+          <Text style={s.describeSectionLabel}>What happened?</Text>
+          <TextInput
+            style={s.ta}
+            placeholder="Is there any further context you want to provide about the conversation? (optional)"
+            placeholderTextColor="rgba(0,0,0,.3)"
+            value={situation}
+            onChangeText={setSituation}
+            multiline
+            textAlignVertical="top"
+          />
+        </View>
+
+        <TouchableOpacity onPress={onHistory} style={s.prev}>
+          <Text style={s.prevTx}>↺  Previous conversations</Text>
         </TouchableOpacity>
-        <Text style={s.ttl}>{person.name}</Text>
-        <Text style={s.sub}>Tell us about it…</Text>
       </View>
-      <TextInput
-        style={s.ta}
-        placeholder="What happened? What do you want to say?"
-        placeholderTextColor="rgba(255,255,255,.3)"
-        value={situation}
-        onChangeText={setSituation}
-        multiline
-        textAlignVertical="top"
-      />
-      <Text style={s.reltag}>Relationship: {person.relationship || '—'}</Text>
-      <TouchableOpacity onPress={onStart} style={s.callbtn}>
-        <Text style={{ fontSize: 28 }}>📞</Text>
-      </TouchableOpacity>
+
+      <View style={s.callbtnHalo}>
+        <View style={s.callbtnRing}>
+          <TouchableOpacity onPress={onStart} style={s.callbtn}>
+            <Text style={{ fontSize: 28 }}>📞</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
       <Text style={s.calltext}>Tap to start your coaching session</Text>
-      <TouchableOpacity onPress={onHistory} style={s.prev}>
-        <Text style={s.prevTx}>↺  Previous conversations</Text>
-      </TouchableOpacity>
     </KeyboardAvoidingView>
   );
 }
@@ -416,53 +438,67 @@ function CallScreen({ person, conversation, messages, setMessages, onEnd }) {
 
   return (
     <KeyboardAvoidingView style={s.callWrap} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
-      <Text style={s.callName}>{person.name}</Text>
-      <Text style={s.timer}>{fmt(secs)}</Text>
-      <View style={s.callAvatar}>
-        <Text style={s.callAvatarTx}>{person.name[0]}</Text>
+      <View style={s.callCard}>
+        <Text style={s.callName}>Coach</Text>
+        <Text style={s.timer}>{fmt(secs)}</Text>
+        <View style={s.callAvatar}>
+          <Text style={s.callAvatarTx}>C</Text>
+        </View>
+        <View style={s.wave}>
+          {Array.from({ length: 7 }).map((_, i) => <WaveBar key={i} delay={i * 120} />)}
+        </View>
+        <ScrollView
+          ref={scrollRef}
+          style={s.miniTranscript}
+          onContentSizeChange={() => scrollRef.current?.scrollToEnd()}
+        >
+          {messages.slice(-3).map((m, i) => (
+            <View key={i} style={[s.miniRow, m.role === 'me' ? s.miniRowMe : s.miniRowThem]}>
+              {m.role !== 'me' && (
+                <View style={s.miniIcon}><Text style={s.miniIconEmoji}>✦</Text></View>
+              )}
+              <View style={[s.mini, m.role === 'me' ? s.miniMe : s.miniThem]}>
+                <Text style={m.role === 'me' ? s.miniMeTx : s.miniThemTx}>{m.content}</Text>
+              </View>
+              {m.role === 'me' && (
+                <View style={[s.miniIcon, s.miniIconMe]}><Text style={s.miniIconEmoji}>♡</Text></View>
+              )}
+            </View>
+          ))}
+          {busy && (
+            <View style={[s.miniRow, s.miniRowThem]}>
+              <View style={s.miniIcon}><Text style={s.miniIconEmoji}>✦</Text></View>
+              <View style={[s.mini, s.miniThem]}>
+                <Text style={s.miniThemTx}>…</Text>
+              </View>
+            </View>
+          )}
+        </ScrollView>
+        <View style={s.callInput}>
+          <TextInput
+            style={[s.callInputField, { height: inputHeight }]}
+            value={input}
+            placeholder={listening ? 'Listening…' : busy ? 'Coach is replying…' : 'Say something…'}
+            placeholderTextColor={listening ? '#1e40af' : 'rgba(0,0,0,.3)'}
+            onChangeText={setInput}
+            onSubmitEditing={() => sendText(input.trim())}
+            returnKeyType="send"
+            editable={!listening && !busy}
+            multiline
+            scrollEnabled={inputHeight >= 96}
+            textAlignVertical="top"
+            blurOnSubmit
+            onContentSizeChange={(event) => {
+              const nextHeight = Math.min(Math.max(44, event.nativeEvent.contentSize.height + 8), 96);
+              setInputHeight(nextHeight);
+            }}
+          />
+          <TouchableOpacity onPress={() => sendText(input.trim())} style={s.sendBtn}>
+            <Text style={s.sendBtnTx}>↑</Text>
+          </TouchableOpacity>
+        </View>
       </View>
-      <View style={s.wave}>
-        {Array.from({ length: 7 }).map((_, i) => <WaveBar key={i} delay={i * 120} />)}
-      </View>
-      <ScrollView
-        ref={scrollRef}
-        style={s.miniTranscript}
-        onContentSizeChange={() => scrollRef.current?.scrollToEnd()}
-      >
-        {messages.slice(-3).map((m, i) => (
-          <View key={i} style={[s.mini, m.role === 'me' ? s.miniMe : s.miniThem]}>
-            <Text style={m.role === 'me' ? s.miniMeTx : s.miniThemTx}>{m.content}</Text>
-          </View>
-        ))}
-        {busy && (
-          <View style={[s.mini, s.miniThem]}>
-            <Text style={s.miniThemTx}>…</Text>
-          </View>
-        )}
-      </ScrollView>
-      <View style={s.callInput}>
-        <TextInput
-          style={[s.callInputField, { height: inputHeight }]}
-          value={input}
-          placeholder={listening ? 'Listening…' : busy ? 'Coach is replying…' : 'Say something…'}
-          placeholderTextColor={listening ? '#b8a0d4' : 'rgba(255,255,255,.3)'}
-          onChangeText={setInput}
-          onSubmitEditing={() => sendText(input.trim())}
-          returnKeyType="send"
-          editable={!listening && !busy}
-          multiline
-          scrollEnabled={inputHeight >= 96}
-          textAlignVertical="top"
-          blurOnSubmit
-          onContentSizeChange={(event) => {
-            const nextHeight = Math.min(Math.max(44, event.nativeEvent.contentSize.height + 8), 96);
-            setInputHeight(nextHeight);
-          }}
-        />
-        <TouchableOpacity onPress={() => sendText(input.trim())} style={s.sendBtn}>
-          <Text style={s.sendBtnTx}>↑</Text>
-        </TouchableOpacity>
-      </View>
+
       <TouchableOpacity onPress={() => {
         activeRef.current = false;
         clearTimeout(silenceTimer.current);
@@ -499,7 +535,7 @@ function InsightsScreen({ conv, onHome, onTranscript }) {
     <View style={s.scr}>
       <View style={s.topbar}>
         <TouchableOpacity onPress={onHome} style={s.iconbtn}>
-          <Text style={{ color: 'rgba(255,255,255,.6)', fontSize: 16 }}>{'⌂'}</Text>
+          <Text style={{ color: 'rgba(0,0,0,.5)', fontSize: 16 }}>{'⌂'}</Text>
         </TouchableOpacity>
       </View>
       <Text style={s.insCoachLine}>
@@ -576,14 +612,23 @@ function TranscriptScreen({ conv, messages, onBack, onNew }) {
         <Text style={s.ttl}>Transcript</Text>
         <Text style={s.sub}>{conv.title} · with {conv.person_name || ''}</Text>
       </View>
-      <ScrollView style={s.txScroll}>
-        {messages.map((m, i) => (
-          <View key={i} style={[s.bub, m.role === 'me' ? s.bubMe : s.bubThem]}>
-            <Text style={s.bubWho}>{m.role === 'me' ? 'Me' : conv.person_name}</Text>
-            <Text style={m.role === 'me' ? s.bubMeTx : s.bubThemTx}>{m.content}</Text>
-          </View>
-        ))}
-      </ScrollView>
+      <View style={s.txCard}>
+        <ScrollView style={s.txScroll}>
+          {messages.map((m, i) => (
+            <View key={i} style={[s.txRow, m.role === 'me' ? s.txRowMe : s.txRowThem]}>
+              {m.role !== 'me' && (
+                <View style={s.txIcon}><Text style={s.txIconEmoji}>✦</Text></View>
+              )}
+              <View style={[s.bub, m.role === 'me' ? s.bubMe : s.bubThem]}>
+                <Text style={m.role === 'me' ? s.bubMeTx : s.bubThemTx}>{m.content}</Text>
+              </View>
+              {m.role === 'me' && (
+                <View style={[s.txIcon, s.txIconMe]}><Text style={s.txIconEmoji}>♡</Text></View>
+              )}
+            </View>
+          ))}
+        </ScrollView>
+      </View>
       <TouchableOpacity onPress={onBack} style={s.cta}>
         <Text style={s.ctaTx}>Back to insights</Text>
       </TouchableOpacity>
@@ -634,163 +679,206 @@ function HistoryScreen({ history, person, onOpen, onBack }) {
 }
 
 const s = StyleSheet.create({
-  root: { flex: 1, backgroundColor: '#0e0e1a' },
+  root: { flex: 1, backgroundColor: '#fceee9' },
   scr: { flex: 1 },
   hd: { paddingHorizontal: 24, paddingTop: 16, paddingBottom: 8 },
-  ttl: { fontSize: 23, fontWeight: '600', color: '#f0e6d3', lineHeight: 28 },
-  sub: { fontSize: 13, color: 'rgba(255,255,255,.45)', marginTop: 4 },
-  back: { color: '#c4a96e', fontSize: 13, marginBottom: 10 },
-  label: { fontSize: 11, color: 'rgba(255,255,255,.3)', paddingHorizontal: 24, marginTop: 16, marginBottom: 10, letterSpacing: 0.8 },
+  ttl: { fontSize: 24, fontWeight: '700', color: '#111827', lineHeight: 30 },
+  sub: { fontSize: 13, color: 'rgba(0,0,0,.4)', marginTop: 4 },
+  back: { color: '#1e3a8a', fontSize: 14, fontWeight: '500' },
+  backRow: { paddingHorizontal: 24, paddingTop: 12, paddingBottom: 4 },
+  label: { fontSize: 11, color: 'rgba(0,0,0,.3)', paddingHorizontal: 24, marginTop: 16, marginBottom: 10, letterSpacing: 0.8 },
 
-  // Choose
-  people: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-around', paddingHorizontal: 24, paddingTop: 30, paddingBottom: 10 },
-  person: { alignItems: 'center', gap: 9, marginBottom: 12 },
-  peopleScroll: { paddingHorizontal: 0, paddingBottom: 12 },
-  footer: { paddingHorizontal: 20, paddingBottom: 20 },
-  pcircle: { width: 66, height: 66, borderRadius: 33, alignItems: 'center', justifyContent: 'center' },
-  pcircleText: { fontSize: 24, fontWeight: '600' },
-  pname: { fontSize: 12, color: 'rgba(255,255,255,.55)' },
-  addnew: { width: '100%', padding: 16, borderWidth: 1, borderStyle: 'dashed', borderColor: 'rgba(255,255,255,.15)', borderRadius: 14, backgroundColor: 'transparent' },
-  addnewTx: { color: 'rgba(255,255,255,.5)', fontSize: 14, textAlign: 'center' },
+  // Choose screen
+  choosePad: { paddingHorizontal: 24, paddingTop: 20, paddingBottom: 16 },
+  chooseCard: { marginHorizontal: 20, flex: 1, backgroundColor: '#ffffff', borderRadius: 18,
+    borderWidth: 1, borderColor: '#e5e7eb',
+    shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 8, shadowOffset: { width: 0, height: 2 },
+    overflow: 'hidden' },
+  personRow: { flexDirection: 'row', alignItems: 'center', gap: 14, paddingHorizontal: 18, paddingVertical: 16 },
+  personRowBorder: { borderBottomWidth: 1, borderBottomColor: '#f3f4f6' },
+  radioCircle: { width: 42, height: 42, borderRadius: 21, borderWidth: 2,
+    alignItems: 'center', justifyContent: 'center', backgroundColor: 'transparent' },
+  radioInitial: { fontSize: 17, fontWeight: '600' },
+  personName: { fontSize: 15, fontWeight: '600', color: '#111827' },
+  personRel: { fontSize: 12, color: 'rgba(0,0,0,.4)', marginTop: 1 },
+  addnew: { marginHorizontal: 20, marginTop: 12, marginBottom: 20, padding: 16, backgroundColor: '#ffffff',
+    borderRadius: 14, borderWidth: 1, borderColor: '#e5e7eb', alignItems: 'center',
+    shadowColor: '#000', shadowOpacity: 0.04, shadowRadius: 4, shadowOffset: { width: 0, height: 1 } },
+  addnewTx: { color: 'rgba(0,0,0,.5)', fontSize: 15, fontWeight: '500' },
 
-  // Describe
-  ta: { marginHorizontal: 24, marginVertical: 6, backgroundColor: 'rgba(255,255,255,.05)',
-    borderWidth: 1, borderColor: 'rgba(255,255,255,.1)', borderRadius: 16,
-    padding: 14, minHeight: 130, color: '#f0e6d3', fontSize: 14, lineHeight: 22 },
-  reltag: { marginHorizontal: 24, marginTop: 12, fontSize: 12, color: 'rgba(255,255,255,.4)' },
-  callbtn: { width: 80, height: 80, borderRadius: 40, backgroundColor: '#3ec46a',
-    alignItems: 'center', justifyContent: 'center', alignSelf: 'center', marginTop: 18, marginBottom: 8,
-    shadowColor: '#3ec46a', shadowOpacity: 0.4, shadowRadius: 14, shadowOffset: { width: 0, height: 6 } },
-  calltext: { textAlign: 'center', fontSize: 12, color: 'rgba(255,255,255,.4)', marginBottom: 12 },
-  prev: { marginHorizontal: 20, marginTop: 'auto', marginBottom: 26, padding: 14,
-    backgroundColor: 'rgba(255,255,255,.05)', borderRadius: 12,
-    borderWidth: 1, borderColor: 'rgba(255,255,255,.08)' },
-  prevTx: { color: 'rgba(255,255,255,.55)', fontSize: 13, textAlign: 'center' },
-
-  // Call
-  callWrap: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 20 },
-  callName: { fontSize: 30, fontWeight: '600', color: '#f0e6d3' },
-  timer: { fontSize: 15, color: 'rgba(255,255,255,.4)', marginTop: 6 },
-  callAvatar: { width: 92, height: 92, borderRadius: 46, backgroundColor: 'rgba(196,169,110,.18)',
-    borderWidth: 2, borderColor: '#c4a96e', alignItems: 'center', justifyContent: 'center', marginVertical: 22 },
-  callAvatarTx: { fontSize: 34, fontWeight: '600', color: '#c4a96e' },
-  wave: { flexDirection: 'row', gap: 4, alignItems: 'center', height: 32, marginBottom: 16 },
-  waveBar: { width: 4, backgroundColor: '#b8a0d4', borderRadius: 2 },
-  miniTranscript: { width: '100%', maxHeight: 100, marginBottom: 12 },
-  mini: { maxWidth: '85%', paddingHorizontal: 11, paddingVertical: 7, borderRadius: 12, marginBottom: 6 },
-  miniMe: { alignSelf: 'flex-end', backgroundColor: 'rgba(196,169,110,.14)' },
-  miniThem: { alignSelf: 'flex-start', backgroundColor: 'rgba(184,160,212,.1)' },
-  miniMeTx: { fontSize: 12, color: '#f0e6d3', lineHeight: 17 },
-  miniThemTx: { fontSize: 12, color: 'rgba(255,255,255,.75)', lineHeight: 17 },
-  callInput: { flexDirection: 'row', gap: 8, width: '100%', marginBottom: 16 },
-  callInputField: { flex: 1, backgroundColor: 'rgba(255,255,255,.06)',
-    borderWidth: 1, borderColor: 'rgba(184,160,212,.25)', borderRadius: 12,
-    paddingHorizontal: 14, paddingVertical: 11, color: '#f0e6d3', fontSize: 13 },
-  micBtn: { width: 42, height: 44, borderRadius: 12, backgroundColor: 'rgba(184,160,212,.2)', alignItems: 'center', justifyContent: 'center' },
-  micBtnActive: { backgroundColor: 'rgba(229,77,77,.3)' },
-  sendBtn: { width: 42, borderRadius: 12, backgroundColor: '#b8a0d4', alignItems: 'center', justifyContent: 'center' },
-  sendBtnTx: { color: '#0e0e1a', fontSize: 16, fontWeight: '600' },
-  endBtn: { width: 80, height: 80, borderRadius: 40, backgroundColor: '#e54d4d',
+  // Describe screen
+  describeCard: { marginHorizontal: 20, marginTop: 8, backgroundColor: '#ffffff',
+    borderRadius: 20, borderWidth: 1, borderColor: '#e5e7eb',
+    shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 8, shadowOffset: { width: 0, height: 2 },
+    padding: 20, flex: 1 },
+  describeAvatar: { width: 72, height: 72, borderRadius: 36, backgroundColor: '#dbeafe',
+    alignItems: 'center', justifyContent: 'center', alignSelf: 'center', marginBottom: 10 },
+  describeAvatarTx: { fontSize: 28, fontWeight: '700', color: '#1e3a8a' },
+  describeName: { fontSize: 20, fontWeight: '700', color: '#111827', textAlign: 'center' },
+  describeRel: { fontSize: 13, color: 'rgba(0,0,0,.4)', textAlign: 'center', marginTop: 2, marginBottom: 16 },
+  describeSection: { marginTop: 4, marginBottom: 12 },
+  describeSectionLabel: { fontSize: 11, fontWeight: '600', textTransform: 'uppercase',
+    letterSpacing: 0.7, color: 'rgba(0,0,0,.35)', marginBottom: 8 },
+  ta: { backgroundColor: '#f9fafb', borderWidth: 1, borderColor: '#e5e7eb',
+    borderRadius: 14, padding: 14, minHeight: 160, color: '#111827', fontSize: 14, lineHeight: 22 },
+  prev: { marginTop: 'auto', padding: 14, backgroundColor: '#f9fafb', borderRadius: 12,
+    borderWidth: 1, borderColor: '#e5e7eb' },
+  prevTx: { color: 'rgba(0,0,0,.5)', fontSize: 13, textAlign: 'center' },
+  callbtnHalo: { alignSelf: 'center', marginTop: 20, marginBottom: 8, width: 116, height: 116,
+    borderRadius: 58, backgroundColor: 'rgba(62,196,106,.07)', alignItems: 'center', justifyContent: 'center' },
+  callbtnRing: { width: 96, height: 96, borderRadius: 48, backgroundColor: 'rgba(62,196,106,.13)',
+    alignItems: 'center', justifyContent: 'center' },
+  callbtn: { width: 74, height: 74, borderRadius: 37, backgroundColor: '#3ec46a',
     alignItems: 'center', justifyContent: 'center',
-    shadowColor: '#e54d4d', shadowOpacity: 0.4, shadowRadius: 14, shadowOffset: { width: 0, height: 6 } },
-  endBtnTx: { fontSize: 28, transform: [{ rotate: '135deg' }] },
-  hint: { fontSize: 11, color: 'rgba(255,255,255,.3)', marginTop: 10 },
+    shadowColor: '#166534', shadowOpacity: 0.2, shadowRadius: 6, shadowOffset: { width: 0, height: 3 } },
+  calltext: { textAlign: 'center', fontSize: 12, color: 'rgba(0,0,0,.35)', marginBottom: 16 },
+
+  // Call (light theme)
+  callWrap: { flex: 1, alignItems: 'center', padding: 20, paddingTop: 12, backgroundColor: '#fceee9' },
+  callCard: { width: '100%', flex: 1, backgroundColor: '#ffffff', borderRadius: 24,
+    padding: 16, paddingTop: 22, alignItems: 'center', marginBottom: 18,
+    shadowColor: '#000', shadowOpacity: 0.06, shadowRadius: 12, shadowOffset: { width: 0, height: 2 } },
+  callName: { fontSize: 28, fontWeight: '700', color: '#111827' },
+  timer: { fontSize: 14, color: 'rgba(0,0,0,.35)', marginTop: 4 },
+  callAvatar: { width: 88, height: 88, borderRadius: 44, backgroundColor: '#dbeafe',
+    borderWidth: 2, borderColor: '#93c5fd', alignItems: 'center', justifyContent: 'center', marginBottom: 16, marginTop: 4 },
+  callAvatarTx: { fontSize: 32, fontWeight: '700', color: '#1e3a8a' },
+  wave: { flexDirection: 'row', gap: 4, alignItems: 'center', height: 32, marginBottom: 14 },
+  waveBar: { width: 4, backgroundColor: '#60a5fa', borderRadius: 2 },
+  miniTranscript: { width: '100%', flex: 1, marginBottom: 12 },
+  miniRow: { flexDirection: 'row', alignItems: 'flex-end', gap: 7, marginBottom: 6 },
+  miniRowThem: { justifyContent: 'flex-start' },
+  miniRowMe: { justifyContent: 'flex-end' },
+  miniIcon: { width: 28, height: 28, borderRadius: 14, backgroundColor: '#dbeafe',
+    alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
+  miniIconMe: { backgroundColor: '#fef9c3' },
+  miniIconEmoji: { fontSize: 11, color: '#1e3a8a' },
+  mini: { maxWidth: '75%', paddingHorizontal: 11, paddingVertical: 7, borderRadius: 12 },
+  miniMe: { backgroundColor: 'rgba(232,201,122,.25)', borderRadius: 12, borderBottomRightRadius: 4 },
+  miniThem: { backgroundColor: 'rgba(59,130,246,.1)', borderRadius: 12, borderBottomLeftRadius: 4 },
+  miniMeTx: { fontSize: 12, color: '#92400e', lineHeight: 17 },
+  miniThemTx: { fontSize: 12, color: '#1e3a8a', lineHeight: 17 },
+  callInput: { flexDirection: 'row', gap: 8, width: '100%' },
+  callInputField: { flex: 1, backgroundColor: '#f8faff',
+    borderWidth: 1, borderColor: '#dbeafe', borderRadius: 12,
+    paddingHorizontal: 14, paddingVertical: 11, color: '#111827', fontSize: 13 },
+  micBtn: { width: 42, height: 44, borderRadius: 12, backgroundColor: '#dbeafe', alignItems: 'center', justifyContent: 'center' },
+  micBtnActive: { backgroundColor: 'rgba(229,77,77,.15)' },
+  sendBtn: { width: 42, borderRadius: 12, backgroundColor: '#1e3a8a', alignItems: 'center', justifyContent: 'center' },
+  sendBtnTx: { color: '#ffffff', fontSize: 16, fontWeight: '600' },
+  endBtn: { width: 72, height: 72, borderRadius: 36, backgroundColor: '#fecaca',
+    alignItems: 'center', justifyContent: 'center',
+    shadowColor: '#ef4444', shadowOpacity: 0.12, shadowRadius: 8, shadowOffset: { width: 0, height: 2 } },
+  endBtnTx: { fontSize: 24, transform: [{ rotate: '135deg' }] },
+  hint: { fontSize: 11, color: 'rgba(0,0,0,.3)', marginTop: 10 },
 
   // Insights
-  topbar: { flexDirection: 'row', justifyContent: 'flex-end', paddingHorizontal: 24, paddingTop: 6, paddingBottom: 2 },
-  iconbtn: { width: 34, height: 34, borderRadius: 10, backgroundColor: 'rgba(255,255,255,.06)',
-    borderWidth: 1, borderColor: 'rgba(255,255,255,.1)', alignItems: 'center', justifyContent: 'center' },
-  convTtl: { fontSize: 21, fontWeight: '600', color: '#f0e6d3', paddingHorizontal: 24, paddingTop: 10, paddingBottom: 4 },
-  convSummary: { fontSize: 13, lineHeight: 19, color: 'rgba(255,255,255,.55)', paddingHorizontal: 24, paddingBottom: 6 },
-  convMeta: { fontSize: 12, color: 'rgba(255,255,255,.35)', paddingHorizontal: 24, paddingBottom: 10 },
+  topbar: { flexDirection: 'row', justifyContent: 'center', paddingHorizontal: 24, paddingTop: 6, paddingBottom: 2 },
+  iconbtn: { width: 34, height: 34, borderRadius: 10, backgroundColor: 'rgba(0,0,0,.05)',
+    borderWidth: 1, borderColor: 'rgba(0,0,0,.08)', alignItems: 'center', justifyContent: 'center' },
+  convTtl: { fontSize: 21, fontWeight: '600', color: '#111827', paddingHorizontal: 24, paddingTop: 10, paddingBottom: 4 },
+  convSummary: { fontSize: 13, lineHeight: 19, color: 'rgba(0,0,0,.5)', paddingHorizontal: 24, paddingBottom: 6 },
+  convMeta: { fontSize: 12, color: 'rgba(0,0,0,.3)', paddingHorizontal: 24, paddingBottom: 10 },
   sectionLabel: {
     fontSize: 11,
     fontWeight: '600',
     textTransform: 'uppercase',
     letterSpacing: 0.8,
-    color: 'rgba(255,255,255,.35)',
+    color: 'rgba(0,0,0,.35)',
     paddingHorizontal: 24,
     marginTop: 8,
     marginBottom: 6,
   },
   meter: { marginHorizontal: 24, marginBottom: 16 },
-  styleMeter: { marginHorizontal: 24, marginBottom: 20, paddingBottom: 12, borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,.06)' },
-  stylesIntro: { marginHorizontal: 24, marginBottom: 10, fontSize: 12, lineHeight: 18, color: 'rgba(255,255,255,.4)' },
-  styleDesc: { fontSize: 11, lineHeight: 16, color: 'rgba(255,255,255,.4)', marginBottom: 8 },
+  styleMeter: { marginHorizontal: 24, marginBottom: 20, paddingBottom: 12, borderBottomWidth: 1, borderBottomColor: 'rgba(0,0,0,.06)' },
+  stylesIntro: { marginHorizontal: 24, marginBottom: 10, fontSize: 12, lineHeight: 18, color: 'rgba(0,0,0,.4)' },
+  styleDesc: { fontSize: 11, lineHeight: 16, color: 'rgba(0,0,0,.4)', marginBottom: 8 },
   styleInstanceFirst: { marginTop: 8 },
-  styleInstance: { marginTop: 10, paddingTop: 10, borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,.06)' },
-  styleExample: { fontSize: 12, color: '#f0e6d3', fontStyle: 'italic', lineHeight: 18 },
-  styleReason: { marginTop: 4, fontSize: 12, color: 'rgba(255,255,255,.55)', lineHeight: 18 },
+  styleInstance: { marginTop: 10, paddingTop: 10, borderTopWidth: 1, borderTopColor: 'rgba(0,0,0,.06)' },
+  styleExample: { fontSize: 12, color: '#111827', fontStyle: 'italic', lineHeight: 18 },
+  styleReason: { marginTop: 4, fontSize: 12, color: 'rgba(0,0,0,.5)', lineHeight: 18 },
   meterTop: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 6 },
-  meterLabel: { fontSize: 13, color: 'rgba(255,255,255,.6)' },
+  meterLabel: { fontSize: 13, color: 'rgba(0,0,0,.6)' },
   meterValue: { fontSize: 13, fontWeight: '600' },
-  track: { height: 8, backgroundColor: 'rgba(255,255,255,.08)', borderRadius: 6, overflow: 'hidden' },
+  track: { height: 8, backgroundColor: 'rgba(0,0,0,.08)', borderRadius: 6, overflow: 'hidden' },
   fill: { height: '100%', borderRadius: 6 },
-  icard: { marginHorizontal: 24, marginBottom: 11, backgroundColor: 'rgba(255,255,255,.05)',
-    borderWidth: 1, borderColor: 'rgba(255,255,255,.08)', borderRadius: 14, padding: 13 },
+  icard: { marginHorizontal: 24, marginBottom: 11, backgroundColor: '#ffffff',
+    borderWidth: 1, borderColor: '#e5e7eb', borderRadius: 14, padding: 13 },
   icardH: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 5 },
   dot: { width: 7, height: 7, borderRadius: 4 },
-  icardT: { fontSize: 12, fontWeight: '600', textTransform: 'uppercase', letterSpacing: 0.5 },
-  icardB: { fontSize: 13, color: 'rgba(255,255,255,.6)', lineHeight: 20 },
-  icardQuote: { fontSize: 13, color: '#f0e6d3', fontStyle: 'italic', lineHeight: 20, marginBottom: 8 },
-  icardInstead: { marginTop: 10, paddingTop: 10, borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,.08)' },
-  icardInsteadLbl: { fontSize: 10, textTransform: 'uppercase', letterSpacing: 0.5, color: '#6bc48a', fontWeight: '600', marginBottom: 4 },
-  icardInsteadTx: { fontSize: 13, color: 'rgba(255,255,255,.75)', lineHeight: 20 },
-  didWellItem: { marginTop: 12, paddingTop: 12, borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,.08)' },
-  insCoachLine: { fontSize: 17, fontWeight: '500', color: '#b8a0d4', paddingHorizontal: 24, paddingTop: 16, paddingBottom: 4, lineHeight: 24 },
-  insSection: { marginHorizontal: 24, marginTop: 12, backgroundColor: 'rgba(255,255,255,.04)', borderWidth: 1, borderColor: 'rgba(255,255,255,.08)', borderRadius: 14, padding: 14 },
-  insSectionWarn: { borderColor: 'rgba(228,77,77,.25)' },
-  insSectionLbl: { fontSize: 11, textTransform: 'uppercase', letterSpacing: 0.6, color: 'rgba(255,255,255,.35)', marginBottom: 10, fontWeight: '600' },
-  insMoment: { marginTop: 10, paddingTop: 10, borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,.08)' },
-  insQuote: { fontSize: 13, color: '#f0e6d3', fontStyle: 'italic', lineHeight: 20, marginBottom: 4 },
-  insNote: { fontSize: 13, color: 'rgba(255,255,255,.55)', lineHeight: 20, marginBottom: 6 },
-  insInstead: { marginTop: 10, paddingTop: 10, borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,.08)' },
-  insInsteadTx: { fontSize: 13, color: 'rgba(255,255,255,.75)', lineHeight: 20 },
+  icardT: { fontSize: 12, fontWeight: '600', textTransform: 'uppercase', letterSpacing: 0.5, color: '#111827' },
+  icardB: { fontSize: 13, color: 'rgba(0,0,0,.55)', lineHeight: 20 },
+  icardQuote: { fontSize: 13, color: '#111827', fontStyle: 'italic', lineHeight: 20, marginBottom: 8 },
+  icardInstead: { marginTop: 10, paddingTop: 10, borderTopWidth: 1, borderTopColor: 'rgba(0,0,0,.08)' },
+  icardInsteadLbl: { fontSize: 10, textTransform: 'uppercase', letterSpacing: 0.5, color: '#3ec46a', fontWeight: '600', marginBottom: 4 },
+  icardInsteadTx: { fontSize: 13, color: 'rgba(0,0,0,.7)', lineHeight: 20 },
+  didWellItem: { marginTop: 12, paddingTop: 12, borderTopWidth: 1, borderTopColor: 'rgba(0,0,0,.08)' },
+  insCoachLine: { fontSize: 17, fontWeight: '500', color: '#1e3a8a', paddingHorizontal: 24, paddingTop: 16, paddingBottom: 4, lineHeight: 24 },
+  insSection: { marginHorizontal: 24, marginTop: 12, backgroundColor: '#ffffff', borderWidth: 1, borderColor: '#e5e7eb', borderRadius: 14, padding: 14 },
+  insSectionWarn: { borderColor: 'rgba(229,77,77,.3)' },
+  insSectionLbl: { fontSize: 11, textTransform: 'uppercase', letterSpacing: 0.6, color: 'rgba(0,0,0,.35)', marginBottom: 10, fontWeight: '600' },
+  insMoment: { marginTop: 10, paddingTop: 10, borderTopWidth: 1, borderTopColor: 'rgba(0,0,0,.06)' },
+  insQuote: { fontSize: 13, color: '#111827', fontStyle: 'italic', lineHeight: 20, marginBottom: 4 },
+  insNote: { fontSize: 13, color: 'rgba(0,0,0,.5)', lineHeight: 20, marginBottom: 6 },
+  insInstead: { marginTop: 10, paddingTop: 10, borderTopWidth: 1, borderTopColor: 'rgba(0,0,0,.08)' },
+  insInsteadTx: { fontSize: 13, color: 'rgba(0,0,0,.7)', lineHeight: 20 },
   insStyleName: { fontSize: 15, fontWeight: '600', marginBottom: 5 },
   viewTx: { marginHorizontal: 24, marginTop: 8, marginBottom: 18, padding: 13,
-    backgroundColor: 'rgba(196,169,110,.1)', borderWidth: 1, borderColor: 'rgba(196,169,110,.25)', borderRadius: 12 },
-  viewTxTx: { textAlign: 'center', fontSize: 13, color: '#c4a96e' },
+    backgroundColor: 'rgba(196,169,110,.08)', borderWidth: 1, borderColor: 'rgba(196,169,110,.3)', borderRadius: 12 },
+  viewTxTx: { textAlign: 'center', fontSize: 13, color: '#b8860b' },
 
   // Transcript
-  txScroll: { flex: 1, paddingHorizontal: 20 },
-  bub: { maxWidth: '82%', paddingHorizontal: 13, paddingVertical: 10, borderRadius: 15, marginBottom: 10 },
-  bubMe: { alignSelf: 'flex-end', backgroundColor: 'rgba(196,169,110,.14)',
-    borderWidth: 1, borderColor: 'rgba(196,169,110,.2)', borderBottomRightRadius: 4 },
-  bubThem: { alignSelf: 'flex-start', backgroundColor: 'rgba(184,160,212,.1)',
-    borderWidth: 1, borderColor: 'rgba(184,160,212,.18)', borderBottomLeftRadius: 4 },
-  bubWho: { fontSize: 10, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 3, opacity: 0.6, color: '#f0e6d3' },
-  bubMeTx: { fontSize: 13, color: '#f0e6d3', lineHeight: 19 },
-  bubThemTx: { fontSize: 13, color: 'rgba(255,255,255,.75)', lineHeight: 19 },
+  txCard: { flex: 1, marginHorizontal: 20, marginBottom: 8, backgroundColor: '#ffffff',
+    borderRadius: 20, borderWidth: 1, borderColor: '#e5e7eb',
+    shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 8, shadowOffset: { width: 0, height: 2 },
+    overflow: 'hidden' },
+  txScroll: { flex: 1, paddingHorizontal: 16, paddingVertical: 12 },
+  txRow: { flexDirection: 'row', alignItems: 'flex-end', gap: 8, marginBottom: 10 },
+  txRowThem: { justifyContent: 'flex-start' },
+  txRowMe: { justifyContent: 'flex-end' },
+  txIcon: { width: 32, height: 32, borderRadius: 16, backgroundColor: '#dbeafe',
+    alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
+  txIconMe: { backgroundColor: '#fef9c3' },
+  txIconEmoji: { fontSize: 13 },
+  bub: { maxWidth: '76%', paddingHorizontal: 13, paddingVertical: 10, borderRadius: 16 },
+  bubMe: { backgroundColor: 'rgba(232,201,122,.2)', borderBottomRightRadius: 4 },
+  bubThem: { backgroundColor: '#dbeafe', borderBottomLeftRadius: 4 },
+  bubWho: { fontSize: 10, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 3, opacity: 0.5, color: '#111827' },
+  bubMeTx: { fontSize: 13, color: '#92400e', lineHeight: 19 },
+  bubThemTx: { fontSize: 13, color: '#1e3a8a', lineHeight: 19 },
 
   // CTA
-  cta: { marginHorizontal: 24, marginTop: 14, backgroundColor: '#c4a96e', borderRadius: 13, padding: 14 },
-  ctaTx: { color: '#0e0e1a', fontSize: 14, fontWeight: '600', textAlign: 'center' },
-  ctaGhost: { backgroundColor: 'transparent', borderWidth: 1, borderColor: 'rgba(255,255,255,.12)', marginTop: 10, marginBottom: 18 },
-  ctaGhostTx: { color: 'rgba(255,255,255,.4)', fontSize: 14, textAlign: 'center' },
+  cta: { marginHorizontal: 24, marginTop: 14, backgroundColor: '#dbeafe', borderRadius: 13, padding: 14 },
+  ctaTx: { color: '#1e3a8a', fontSize: 14, fontWeight: '600', textAlign: 'center' },
+  ctaGhost: { backgroundColor: 'transparent', borderWidth: 1, borderColor: 'rgba(0,0,0,.12)', marginTop: 10, marginBottom: 18 },
+  ctaGhostTx: { color: 'rgba(0,0,0,.4)', fontSize: 14, textAlign: 'center' },
 
   // History
   hist: { flex: 1, paddingHorizontal: 20 },
   hrow: { flexDirection: 'row', alignItems: 'center', gap: 12,
-    backgroundColor: 'rgba(255,255,255,.05)', borderWidth: 1, borderColor: 'rgba(255,255,255,.07)',
+    backgroundColor: '#ffffff', borderWidth: 1, borderColor: '#e5e7eb',
     borderRadius: 14, padding: 13, marginBottom: 9 },
   hav: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
   havTx: { fontSize: 16, fontWeight: '600' },
   hinfo: { flex: 1 },
-  htitle: { fontSize: 14, color: '#f0e6d3', fontWeight: '500' },
-  hmeta: { fontSize: 12, color: 'rgba(255,255,255,.4)', marginTop: 2 },
+  htitle: { fontSize: 14, color: '#111827', fontWeight: '500' },
+  hmeta: { fontSize: 12, color: 'rgba(0,0,0,.4)', marginTop: 2 },
   htension: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 10, flexShrink: 0 },
   htensionTx: { fontSize: 11 },
-  empty: { color: 'rgba(255,255,255,.4)', fontSize: 13, textAlign: 'center', paddingTop: 30, paddingHorizontal: 10 },
+  empty: { color: 'rgba(0,0,0,.4)', fontSize: 13, textAlign: 'center', paddingTop: 30, paddingHorizontal: 10 },
+
+  // History header (re-uses hd styles so keep ttl/sub/back compatible)
 
   // Modal
-  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,.7)', alignItems: 'center', justifyContent: 'center' },
-  modalBox: { backgroundColor: '#1c1c2d', borderRadius: 20, padding: 24, width: '80%', gap: 12 },
-  modalTitle: { fontSize: 18, fontWeight: '600', color: '#f0e6d3', marginBottom: 4 },
-  modalInput: { backgroundColor: 'rgba(255,255,255,.06)', borderWidth: 1, borderColor: 'rgba(255,255,255,.1)',
-    borderRadius: 12, padding: 12, color: '#f0e6d3', fontSize: 14 },
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,.4)', alignItems: 'center', justifyContent: 'center' },
+  modalBox: { backgroundColor: '#ffffff', borderRadius: 20, padding: 24, width: '80%', gap: 12,
+    shadowColor: '#000', shadowOpacity: 0.12, shadowRadius: 20, shadowOffset: { width: 0, height: 8 } },
+  modalTitle: { fontSize: 18, fontWeight: '700', color: '#111827', marginBottom: 4 },
+  modalInput: { backgroundColor: '#f9fafb', borderWidth: 1, borderColor: '#e5e7eb',
+    borderRadius: 12, padding: 12, color: '#111827', fontSize: 14 },
   modalActions: { flexDirection: 'row', gap: 10, marginTop: 4 },
-  modalCancel: { flex: 1, padding: 12, borderRadius: 12, borderWidth: 1, borderColor: 'rgba(255,255,255,.12)', alignItems: 'center' },
-  modalCancelTx: { color: 'rgba(255,255,255,.4)', fontSize: 14 },
-  modalConfirm: { flex: 1, padding: 12, borderRadius: 12, backgroundColor: '#c4a96e', alignItems: 'center' },
-  modalConfirmTx: { color: '#0e0e1a', fontSize: 14, fontWeight: '600' },
+  modalCancel: { flex: 1, padding: 12, borderRadius: 12, borderWidth: 1, borderColor: '#e5e7eb', alignItems: 'center' },
+  modalCancelTx: { color: 'rgba(0,0,0,.4)', fontSize: 14 },
+  modalConfirm: { flex: 1, padding: 12, borderRadius: 12, backgroundColor: '#dbeafe', alignItems: 'center' },
+  modalConfirmTx: { color: '#1e3a8a', fontSize: 14, fontWeight: '600' },
 });
