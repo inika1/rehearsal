@@ -375,6 +375,18 @@ function LoginScreen({ onAuth }) {
     setLoading(false);
   };
 
+  const tryDemo = async () => {
+    setError('');
+    setLoading(true);
+    try {
+      // Try logging in first; if account doesn't exist yet, create it.
+      let result = await api.login('demo@bridge.app', 'demo1234').catch(() => null);
+      if (!result?.token) result = await api.signup('demo@bridge.app', 'demo1234');
+      await onAuth(result.token, result.user);
+    } catch (e) { setError(e?.message || 'Could not load demo. Try again.'); }
+    setLoading(false);
+  };
+
   return (
     <KeyboardAvoidingView style={s.scr} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
       <View style={s.loginWrap}>
@@ -420,6 +432,16 @@ function LoginScreen({ onAuth }) {
           <Text style={s.loginSwitch}>
             {mode === 'login' ? "Don't have an account? Sign up" : 'Already have an account? Sign in'}
           </Text>
+        </TouchableOpacity>
+
+        <View style={s.loginDivider}>
+          <View style={s.loginDividerLine} />
+          <Text style={s.loginDividerTx}>or</Text>
+          <View style={s.loginDividerLine} />
+        </View>
+
+        <TouchableOpacity onPress={tryDemo} style={s.demoBtn} disabled={loading}>
+          <Text style={s.demoBtnTx}>{loading ? '…' : 'Try sample login'}</Text>
         </TouchableOpacity>
       </View>
     </KeyboardAvoidingView>
@@ -1049,6 +1071,12 @@ const s = StyleSheet.create({
   loginBtn: { backgroundColor: '#1e3a8a', borderRadius: 12, padding: 14, alignItems: 'center', marginTop: 4 },
   loginBtnTx: { color: '#ffffff', fontSize: 15, fontWeight: '600' },
   loginSwitch: { color: '#1e3a8a', fontSize: 13, textAlign: 'center', marginTop: 20 },
+  loginDivider: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 22 },
+  loginDividerLine: { flex: 1, height: 1, backgroundColor: 'rgba(0,0,0,.1)' },
+  loginDividerTx: { fontSize: 12, color: 'rgba(0,0,0,.3)' },
+  demoBtn: { marginTop: 12, padding: 14, borderRadius: 12, borderWidth: 1,
+    borderColor: 'rgba(0,0,0,.12)', alignItems: 'center', backgroundColor: 'rgba(0,0,0,.02)' },
+  demoBtnTx: { fontSize: 14, color: 'rgba(0,0,0,.45)', fontWeight: '500' },
 
   // Choose screen
   choosePad: { paddingHorizontal: 24, paddingTop: 20, paddingBottom: 16 },
