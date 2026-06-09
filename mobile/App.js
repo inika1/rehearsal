@@ -341,6 +341,7 @@ function CallScreen({ person, conversation, messages, setMessages, onEnd }) {
     else ExpoSpeechRecognitionModule.stop();
     setMessages((m) => [...m, { role: 'me', content: text }]);
     setInput('');
+    setInputHeight(44);
     let reply = '';
     let done = false;
     try {
