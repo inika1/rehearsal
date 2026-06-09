@@ -370,9 +370,8 @@ function LoginScreen({ onAuth }) {
       const result = mode === 'signup'
         ? await api.signup(email.trim(), password)
         : await api.login(email.trim(), password);
-      if (result.error) { setError(result.error); }
-      else { await onAuth(result.token, result.user); }
-    } catch { setError('Something went wrong. Please try again.'); }
+      await onAuth(result.token, result.user);
+    } catch (e) { setError(e?.message || 'Something went wrong. Please try again.'); }
     setLoading(false);
   };
 
