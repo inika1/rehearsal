@@ -393,7 +393,11 @@ function LoginScreen({ onAuth }) {
         <View style={s.loginBrand}>
           <BridgeLogo size={110} />
           <Text style={s.loginTitle}>Bridge</Text>
-          <Text style={s.loginTagline}>Closing the gap between intention and understanding</Text>
+          <Text style={s.loginTagline}>
+            {'Closing the gap between '}
+            <Text onPress={tryDemo}>{'intention'}</Text>
+            {' and understanding'}
+          </Text>
         </View>
         <Text style={s.loginSub}>
           {mode === 'login' ? 'Sign in to continue' : 'Create your account'}
