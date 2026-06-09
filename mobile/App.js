@@ -1,4 +1,6 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { ExpoSpeechRecognitionModule, useSpeechRecognitionEvent } from 'expo-speech-recognition';
+import Svg, { Circle, Line, Path, Rect } from 'react-native-svg';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect, useRef, useState } from 'react';
 import {
@@ -24,44 +26,53 @@ import {
 const API = 'https://rehearsal-production-5d15.up.railway.app';
 const SPEECH_SILENCE_MS = 3000;
 
+// Auth token — set once on login/startup, included in every request.
+let _token = null;
+const h = (extra = {}) => ({
+  'content-type': 'application/json',
+  ...(_token ? { authorization: `Bearer ${_token}` } : {}),
+  ...extra,
+});
 const j = async (r) => {
   const data = await r.json().catch(() => ({}));
   if (!r.ok) throw new Error(data?.error || `Request failed: ${r.status}`);
   return data;
 };
 const api = {
-  getPeople: () => fetch(`${API}/api/people`).then(j),
+  setToken: (t) => { _token = t; },
+  signup: (email, password) =>
+    fetch(`${API}/api/auth/signup`, {
+      method: 'POST', headers: h(), body: JSON.stringify({ email, password }),
+    }).then(j),
+  login: (email, password) =>
+    fetch(`${API}/api/auth/login`, {
+      method: 'POST', headers: h(), body: JSON.stringify({ email, password }),
+    }).then(j),
+  getPeople: () => fetch(`${API}/api/people`, { headers: h() }).then(j),
   addPerson: (name, relationship) =>
     fetch(`${API}/api/people`, {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ name, relationship }),
+      method: 'POST', headers: h(), body: JSON.stringify({ name, relationship }),
     }).then(j),
   startConversation: (person_id, title, situation) =>
     fetch(`${API}/api/conversations`, {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ person_id, title, situation }),
+      method: 'POST', headers: h(), body: JSON.stringify({ person_id, title, situation }),
     }).then(j),
   sendTurn: (id, content) =>
     fetch(`${API}/api/conversations/${id}/turn`, {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ content }),
+      method: 'POST', headers: h(), body: JSON.stringify({ content }),
     }).then(j),
   finish: (id, duration) =>
     fetch(`${API}/api/conversations/${id}/finish`, {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ duration }),
+      method: 'POST', headers: h(), body: JSON.stringify({ duration }),
     }).then(j),
   history: (personId) =>
-    fetch(`${API}/api/conversations${personId ? `?person_id=${personId}` : ''}`).then(j),
-  getConversation: (id) => fetch(`${API}/api/conversations/${id}`).then(j),
+    fetch(`${API}/api/conversations${personId ? `?person_id=${personId}` : ''}`,
+      { headers: h() }).then(j),
+  getConversation: (id) => fetch(`${API}/api/conversations/${id}`, { headers: h() }).then(j),
   deleteConversation: (id) =>
-    fetch(`${API}/api/conversations/${id}`, { method: 'DELETE' }).then(j),
+    fetch(`${API}/api/conversations/${id}`, { method: 'DELETE', headers: h() }).then(j),
   deletePerson: (id) =>
-    fetch(`${API}/api/people/${id}`, { method: 'DELETE' }).then(j),
+    fetch(`${API}/api/people/${id}`, { method: 'DELETE', headers: h() }).then(j),
 };
 
 const AVATAR_COLORS = ['#c4a96e', '#b8a0d4', '#9b8cf0', '#e8a23d', '#3ec46a'];
@@ -69,6 +80,8 @@ const colorFor = (i) => AVATAR_COLORS[i % AVATAR_COLORS.length];
 const tColor = (t) => (t >= 65 ? '#e54d4d' : t >= 45 ? '#e8a23d' : '#3ec46a');
 
 export default function App() {
+  const [authReady, setAuthReady] = useState(false);
+  const [user, setUser] = useState(null);
   const [screen, setScreen] = useState('choose');
   const [people, setPeople] = useState([]);
   const [person, setPerson] = useState(null);
@@ -81,10 +94,46 @@ export default function App() {
   const [newRel, setNewRel] = useState('');
   const [noInput, setNoInput] = useState(false);
 
+  // Restore session on startup
   useEffect(() => {
     configureCoachSpeech(API);
-    api.getPeople().then(setPeople);
+    AsyncStorage.getItem('auth_token').then(async (token) => {
+      if (token) {
+        api.setToken(token);
+        const data = await api.getPeople().catch(() => null);
+        if (Array.isArray(data)) {
+          setPeople(data);
+          const stored = await AsyncStorage.getItem('auth_user').catch(() => null);
+          setUser(stored ? JSON.parse(stored) : { token });
+        } else {
+          // Token invalid — clear and show login
+          await AsyncStorage.multiRemove(['auth_token', 'auth_user']);
+          api.setToken(null);
+        }
+      }
+      setAuthReady(true);
+    });
   }, []);
+
+  const handleAuth = async (token, userObj) => {
+    api.setToken(token);
+    await AsyncStorage.setItem('auth_token', token);
+    await AsyncStorage.setItem('auth_user', JSON.stringify(userObj));
+    const data = await api.getPeople().catch(() => []);
+    if (Array.isArray(data)) setPeople(data);
+    setUser(userObj);
+  };
+
+  const handleLogout = async () => {
+    await AsyncStorage.multiRemove(['auth_token', 'auth_user']);
+    api.setToken(null);
+    setUser(null);
+    setPeople([]);
+    setPerson(null);
+    setConversation(null);
+    setMessages([]);
+    setScreen('choose');
+  };
 
   const pickPerson = (p) => { setPerson(p); setSituation(''); setScreen('describe'); };
 
@@ -166,6 +215,26 @@ export default function App() {
     setScreen('insights');
   };
 
+  if (!authReady) {
+    return (
+      <SafeAreaView style={s.root}>
+        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+          <Text style={{ fontSize: 28, fontWeight: '700', color: '#111827', marginBottom: 8 }}>Rehearsal</Text>
+          <Text style={{ color: 'rgba(0,0,0,.35)', fontSize: 14 }}>Loading…</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  if (!user) {
+    return (
+      <SafeAreaView style={s.root}>
+        <StatusBar style="dark" />
+        <LoginScreen onAuth={handleAuth} />
+      </SafeAreaView>
+    );
+  }
+
   return (
     <SafeAreaView style={s.root}>
       <StatusBar style="dark" />
@@ -207,7 +276,8 @@ export default function App() {
       </Modal>
 
       {screen === 'choose' && (
-        <ChooseScreen people={people} onPick={pickPerson} onAdd={() => setAddingPerson(true)} />
+        <ChooseScreen people={people} onPick={pickPerson} onAdd={() => setAddingPerson(true)}
+          userEmail={user?.email} onLogout={handleLogout} />
       )}
       {screen === 'describe' && (
         <DescribeScreen person={person} situation={situation} setSituation={setSituation}
@@ -237,12 +307,146 @@ export default function App() {
   );
 }
 
-function ChooseScreen({ people, onPick, onAdd }) {
+function BridgeLogo({ size = 110 }) {
+  const navy = '#1e3a8a';
+  const cable = '#3b5ea6';
+  const w = size;
+  const h = size * 0.68;
+  // viewBox 0 0 120 82
+  return (
+    <Svg width={w} height={h} viewBox="0 0 120 82">
+      {/* Road deck */}
+      <Rect x="0" y="66" width="120" height="6" rx="3" fill={navy} />
+
+      {/* Left tower */}
+      <Rect x="24" y="10" width="11" height="58" rx="3" fill={navy} />
+      {/* Left tower cap */}
+      <Rect x="20" y="7" width="19" height="9" rx="3" fill={navy} />
+      {/* Left tower window */}
+      <Rect x="27" y="22" width="5" height="7" rx="1.5" fill="#fceee9" opacity="0.6" />
+
+      {/* Right tower */}
+      <Rect x="85" y="10" width="11" height="58" rx="3" fill={navy} />
+      {/* Right tower cap */}
+      <Rect x="81" y="7" width="19" height="9" rx="3" fill={navy} />
+      {/* Right tower window */}
+      <Rect x="88" y="22" width="5" height="7" rx="1.5" fill="#fceee9" opacity="0.6" />
+
+      {/* Main cable — droops from tower top to tower top */}
+      <Path
+        d="M 29 13 Q 60 56 91 13"
+        stroke={cable}
+        strokeWidth="3"
+        fill="none"
+        strokeLinecap="round"
+      />
+
+      {/* Suspender cables */}
+      <Line x1="41" y1="27" x2="41" y2="66" stroke={cable} strokeWidth="1.5" opacity="0.45" />
+      <Line x1="51" y1="33" x2="51" y2="66" stroke={cable} strokeWidth="1.5" opacity="0.45" />
+      <Line x1="60" y1="35" x2="60" y2="66" stroke={cable} strokeWidth="1.5" opacity="0.45" />
+      <Line x1="69" y1="33" x2="69" y2="66" stroke={cable} strokeWidth="1.5" opacity="0.45" />
+      <Line x1="79" y1="27" x2="79" y2="66" stroke={cable} strokeWidth="1.5" opacity="0.45" />
+
+      {/* Anchor points where cables meet towers */}
+      <Circle cx="29" cy="13" r="2.5" fill={cable} />
+      <Circle cx="91" cy="13" r="2.5" fill={cable} />
+    </Svg>
+  );
+}
+
+function LoginScreen({ onAuth }) {
+  const [mode, setMode] = useState('login');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
+
+  const submit = async () => {
+    setError('');
+    if (!email.trim() || !password) { setError('Please enter your email and password.'); return; }
+    setLoading(true);
+    try {
+      const result = mode === 'signup'
+        ? await api.signup(email.trim(), password)
+        : await api.login(email.trim(), password);
+      if (result.error) { setError(result.error); }
+      else { await onAuth(result.token, result.user); }
+    } catch { setError('Something went wrong. Please try again.'); }
+    setLoading(false);
+  };
+
+  return (
+    <KeyboardAvoidingView style={s.scr} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+      <View style={s.loginWrap}>
+        <View style={s.loginBrand}>
+          <BridgeLogo size={110} />
+          <Text style={s.loginTitle}>Bridge</Text>
+          <Text style={s.loginTagline}>Closing the gap between intention and understanding</Text>
+        </View>
+        <Text style={s.loginSub}>
+          {mode === 'login' ? 'Sign in to continue' : 'Create your account'}
+        </Text>
+
+        <View style={s.loginCard}>
+          <TextInput
+            style={s.loginInput}
+            placeholder="Email"
+            placeholderTextColor="rgba(0,0,0,.3)"
+            value={email}
+            onChangeText={setEmail}
+            autoCapitalize="none"
+            keyboardType="email-address"
+            autoFocus
+          />
+          <TextInput
+            style={s.loginInput}
+            placeholder="Password"
+            placeholderTextColor="rgba(0,0,0,.3)"
+            value={password}
+            onChangeText={setPassword}
+            secureTextEntry
+            onSubmitEditing={submit}
+            returnKeyType="go"
+          />
+          {error ? <Text style={s.loginError}>{error}</Text> : null}
+          <TouchableOpacity onPress={submit} style={s.loginBtn} disabled={loading}>
+            <Text style={s.loginBtnTx}>
+              {loading ? '…' : mode === 'login' ? 'Sign in' : 'Create account'}
+            </Text>
+          </TouchableOpacity>
+        </View>
+
+        <TouchableOpacity onPress={() => { setMode(mode === 'login' ? 'signup' : 'login'); setError(''); }}>
+          <Text style={s.loginSwitch}>
+            {mode === 'login' ? "Don't have an account? Sign up" : 'Already have an account? Sign in'}
+          </Text>
+        </TouchableOpacity>
+      </View>
+    </KeyboardAvoidingView>
+  );
+}
+
+function ChooseScreen({ people, onPick, onAdd, userEmail, onLogout }) {
   return (
     <View style={s.scr}>
       <View style={s.choosePad}>
-        <Text style={s.ttl}>Choose someone</Text>
-        <Text style={s.sub}>Who do you need to talk to?</Text>
+        <View style={s.chooseHeader}>
+          <View>
+            <Text style={s.ttl}>Choose someone</Text>
+            <Text style={s.sub}>Who do you need to talk to?</Text>
+          </View>
+          <TouchableOpacity onPress={() => Alert.alert(
+            'Sign out',
+            userEmail ? `Signed in as ${userEmail}` : 'Sign out of your account?',
+            [
+              { text: 'Cancel', style: 'cancel' },
+              { text: 'Sign out', style: 'destructive', onPress: onLogout },
+            ]
+          )} style={s.logoutBtn}>
+            <Text style={s.logoutTx}>↪</Text>
+          </TouchableOpacity>
+        </View>
       </View>
 
       <View style={s.chooseCard}>
@@ -831,8 +1035,29 @@ const s = StyleSheet.create({
   backRow: { paddingHorizontal: 24, paddingTop: 12, paddingBottom: 4 },
   label: { fontSize: 11, color: 'rgba(0,0,0,.3)', paddingHorizontal: 24, marginTop: 16, marginBottom: 10, letterSpacing: 0.8 },
 
+  // Login screen
+  loginWrap: { flex: 1, justifyContent: 'center', paddingHorizontal: 28, paddingBottom: 32 },
+  loginBrand: { alignItems: 'center', marginBottom: 28 },
+  loginTitle: { fontSize: 36, fontWeight: '800', color: '#111827', textAlign: 'center', marginTop: 10, marginBottom: 8, letterSpacing: -0.5 },
+  loginTagline: { fontSize: 13, color: 'rgba(0,0,0,.38)', textAlign: 'center', lineHeight: 19, paddingHorizontal: 16 },
+  loginSub: { fontSize: 14, color: 'rgba(0,0,0,.4)', textAlign: 'center', marginBottom: 16 },
+  loginCard: { backgroundColor: '#ffffff', borderRadius: 20, borderWidth: 1, borderColor: '#e5e7eb',
+    padding: 20, gap: 12,
+    shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 10, shadowOffset: { width: 0, height: 2 } },
+  loginInput: { backgroundColor: '#f9fafb', borderWidth: 1, borderColor: '#e5e7eb',
+    borderRadius: 12, paddingHorizontal: 14, paddingVertical: 13, fontSize: 15, color: '#111827' },
+  loginError: { fontSize: 13, color: '#dc2626', textAlign: 'center' },
+  loginBtn: { backgroundColor: '#1e3a8a', borderRadius: 12, padding: 14, alignItems: 'center', marginTop: 4 },
+  loginBtnTx: { color: '#ffffff', fontSize: 15, fontWeight: '600' },
+  loginSwitch: { color: '#1e3a8a', fontSize: 13, textAlign: 'center', marginTop: 20 },
+
   // Choose screen
   choosePad: { paddingHorizontal: 24, paddingTop: 20, paddingBottom: 16 },
+  chooseHeader: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between' },
+  logoutBtn: { width: 36, height: 36, borderRadius: 10, backgroundColor: 'rgba(0,0,0,.05)',
+    borderWidth: 1, borderColor: 'rgba(0,0,0,.08)', alignItems: 'center', justifyContent: 'center',
+    marginTop: 2 },
+  logoutTx: { fontSize: 16, color: 'rgba(0,0,0,.4)' },
   chooseCard: { marginHorizontal: 20, flex: 1, backgroundColor: '#ffffff', borderRadius: 18,
     borderWidth: 1, borderColor: '#e5e7eb',
     shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 8, shadowOffset: { width: 0, height: 2 },

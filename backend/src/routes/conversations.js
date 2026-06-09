@@ -1,23 +1,45 @@
 import { Router } from 'express';
 import { analyse, replyAs } from '../lib/ai.js';
+import { requireAuth } from '../lib/auth.js';
 import { synthesizeCoachSpeechBase64 } from '../lib/coachSpeech.js';
 import { supabase } from '../lib/supabase.js';
 
 const router = Router();
+router.use(requireAuth);
+
+// Resolve a conversation by id and verify it belongs to req.userId.
+async function getOwnedConv(id, userId, selectPeople = 'name') {
+  const { data: conv } = await supabase
+    .from('conversations')
+    .select(`*, people(${selectPeople}, user_id)`)
+    .eq('id', id)
+    .single();
+  if (!conv || conv.people?.user_id !== userId) return null;
+  return conv;
+}
 
 // GET /api/conversations?person_id=#   (only finished ones, i.e. duration set)
 router.get('/', async (req, res) => {
   const { person_id } = req.query;
+
+  // Scope to this user's people.
+  const { data: userPeople } = await supabase
+    .from('people')
+    .select('id')
+    .eq('user_id', req.userId);
+  if (!userPeople?.length) return res.json([]);
+  const peopleIds = userPeople.map((p) => p.id);
+
   let query = supabase
     .from('conversations')
     .select('*, people(name)')
+    .in('person_id', peopleIds)
     .not('duration', 'is', null)
     .order('created_at', { ascending: false });
   if (person_id) query = query.eq('person_id', person_id);
 
   const { data, error } = await query;
   if (error) return res.status(500).json({ error: error.message });
-  // Flatten joined person name to match the original API shape.
   res.json(data.map((c) => ({ ...c, person_name: c.people?.name })));
 });
 
@@ -26,8 +48,15 @@ router.post('/', async (req, res) => {
   const { person_id, title, situation } = req.body;
   if (!person_id || !title)
     return res.status(400).json({ error: 'person_id and title required' });
-  const { data: personData } = await supabase.from('people').select('name').eq('id', person_id).single();
-  const personName = personData?.name || 'them';
+
+  // Verify person belongs to this user.
+  const { data: personData } = await supabase
+    .from('people')
+    .select('name, user_id')
+    .eq('id', person_id)
+    .single();
+  if (!personData || personData.user_id !== req.userId)
+    return res.status(403).json({ error: 'forbidden' });
 
   const { data, error } = await supabase
     .from('conversations')
@@ -36,7 +65,7 @@ router.post('/', async (req, res) => {
     .single();
   if (error) return res.status(500).json({ error: error.message });
 
-  const firstQuestion = `Let's test prep you for this conversation. What do you want to say to ${personName} — just say it out loud, don't filter it yet.`;
+  const firstQuestion = `Let's test prep you for this conversation. What do you want to say to ${personData.name} — just say it out loud, don't filter it yet.`;
   const [_, openingAudio] = await Promise.all([
     supabase
       .from('messages')
@@ -53,18 +82,13 @@ router.post('/', async (req, res) => {
 
 // GET /api/conversations/:id   (with person name + messages)
 router.get('/:id', async (req, res) => {
-  const { id } = req.params;
-  const { data: conv, error: e1 } = await supabase
-    .from('conversations')
-    .select('*, people(name)')
-    .eq('id', id)
-    .single();
-  if (e1 || !conv) return res.status(404).json({ error: 'not found' });
+  const conv = await getOwnedConv(req.params.id, req.userId);
+  if (!conv) return res.status(404).json({ error: 'not found' });
 
   const { data: messages, error: e2 } = await supabase
     .from('messages')
     .select('role, content')
-    .eq('conversation_id', id)
+    .eq('conversation_id', conv.id)
     .order('id', { ascending: true });
   if (e2) return res.status(500).json({ error: e2.message });
 
@@ -73,16 +97,10 @@ router.get('/:id', async (req, res) => {
 
 // POST /api/conversations/:id/turn
 router.post('/:id/turn', async (req, res) => {
-  const { id } = req.params;
-  const { content } = req.body;
-
-  const { data: conv, error: e1 } = await supabase
-    .from('conversations')
-    .select('*, people(*)')
-    .eq('id', id)
-    .single();
-  if (e1 || !conv) return res.status(404).json({ error: 'not found' });
+  const conv = await getOwnedConv(req.params.id, req.userId, '*');
+  if (!conv) return res.status(404).json({ error: 'not found' });
   const person = conv.people;
+  const { content } = req.body;
 
   const { error: insErr } = await supabase
     .from('messages')
@@ -109,36 +127,23 @@ router.post('/:id/turn', async (req, res) => {
   }
 });
 
-// DELETE /api/conversations/:id  (cascades to messages)
+// DELETE /api/conversations/:id
 router.delete('/:id', async (req, res) => {
-  const { id } = req.params;
-  const { error: messageError } = await supabase
-    .from('messages')
-    .delete()
-    .eq('conversation_id', id);
-  if (messageError) return res.status(500).json({ error: messageError.message });
-
-  const { error: conversationError } = await supabase
-    .from('conversations')
-    .delete()
-    .eq('id', id);
-  if (conversationError) return res.status(500).json({ error: conversationError.message });
-
+  const conv = await getOwnedConv(req.params.id, req.userId);
+  if (!conv) return res.status(404).json({ error: 'not found' });
+  // Delete messages first in case FK cascade isn't active with service role.
+  await supabase.from('messages').delete().eq('conversation_id', conv.id);
+  const { error } = await supabase.from('conversations').delete().eq('id', conv.id);
+  if (error) return res.status(500).json({ error: error.message });
   res.json({ ok: true });
 });
 
 // POST /api/conversations/:id/finish
 router.post('/:id/finish', async (req, res) => {
-  const { id } = req.params;
-  const { duration } = req.body;
-
-  const { data: conv, error: e1 } = await supabase
-    .from('conversations')
-    .select('*, people(*)')
-    .eq('id', id)
-    .single();
-  if (e1 || !conv) return res.status(404).json({ error: 'not found' });
+  const conv = await getOwnedConv(req.params.id, req.userId, '*');
+  if (!conv) return res.status(404).json({ error: 'not found' });
   const person = conv.people;
+  const { duration } = req.body;
 
   const { data: transcript, error: tErr } = await supabase
     .from('messages')
