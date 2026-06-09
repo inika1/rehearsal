@@ -20,6 +20,9 @@ Backend env vars (set in Railway):
 - `ANTHROPIC_API_KEY`
 - `SUPABASE_URL`
 - `SUPABASE_KEY`
+- `ELEVENLABS_API_KEY`
+- `ELEVENLABS_VOICE_ID` (defaults to Brian: `nPczCjzI2devNBz1zQrb`)
+- `ELEVENLABS_MODEL_ID` (defaults to `eleven_flash_v2_5`)
 
 ## Database
 

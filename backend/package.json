@@ -15,8 +15,7 @@
   "dependencies": {
     "@supabase/supabase-js": "^2.45.0",
     "cors": "^2.8.5",
-    "express": "^4.19.2",
-    "node-edge-tts": "^1.2.10"
+    "express": "^4.19.2"
   },
   "devDependencies": {
     "eslint": "^9.9.0"
