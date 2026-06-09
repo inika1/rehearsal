@@ -36,7 +36,7 @@ export async function synthesizeCoachSpeech(text) {
         text: phrase,
         model_id: ELEVENLABS_MODEL_ID,
         voice_settings: {
-          stability: 0.55,
+          stability: 0.25,
           similarity_boost: 0.8,
           style: 0.15,
           use_speaker_boost: true,
