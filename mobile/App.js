@@ -79,6 +79,17 @@ const AVATAR_COLORS = ['#c4a96e', '#b8a0d4', '#9b8cf0', '#e8a23d', '#3ec46a'];
 const colorFor = (i) => AVATAR_COLORS[i % AVATAR_COLORS.length];
 const tColor = (t) => (t >= 65 ? '#e54d4d' : t >= 45 ? '#e8a23d' : '#3ec46a');
 
+function confirmDestructive(title, message, actionText, onConfirm) {
+  if (Platform.OS === 'web' && typeof window !== 'undefined') {
+    if (window.confirm(`${title}\n\n${message}`)) onConfirm();
+    return;
+  }
+  Alert.alert(title, message, [
+    { text: 'Cancel', style: 'cancel' },
+    { text: actionText, style: 'destructive', onPress: onConfirm },
+  ]);
+}
+
 export default function App() {
   const [authReady, setAuthReady] = useState(false);
   const [user, setUser] = useState(null);
@@ -536,13 +547,11 @@ function DescribeScreen({ person, situation, setSituation, onStart, onBack, onHi
           <Text style={s.prevTx}>↺  Previous conversations</Text>
         </TouchableOpacity>
         <TouchableOpacity
-          onPress={() => Alert.alert(
+          onPress={() => confirmDestructive(
             'Delete contact',
             `Remove ${person.name} and all their conversations?`,
-            [
-              { text: 'Cancel', style: 'cancel' },
-              { text: 'Delete', style: 'destructive', onPress: onDeletePerson },
-            ]
+            'Delete',
+            onDeletePerson
           )}
           style={s.deleteContact}
         >
@@ -893,13 +902,11 @@ function InsightsScreen({ conv, noInput, onHome, onTranscript, onDeleteConversat
         {horsemen.map((b, i) => <WatchOutSection key={i} block={b} />)}
         <StyleNoteSection meter={dominant} value={styles[dominant.key]} instances={dominantNotes} />
         <TouchableOpacity
-          onPress={() => Alert.alert(
+          onPress={() => confirmDestructive(
             'Delete conversation',
             'This will permanently remove this conversation and cannot be undone.',
-            [
-              { text: 'Cancel', style: 'cancel' },
-              { text: 'Delete', style: 'destructive', onPress: onDeleteConversation },
-            ]
+            'Delete',
+            onDeleteConversation
           )}
           style={s.deleteConvBtn}
         >
@@ -1016,34 +1023,34 @@ function HistoryScreen({ history, person, onOpen, onBack, onDeleteConversation }
           </Text>
         )}
         {history.map((c, i) => (
-          <TouchableOpacity key={c.id} onPress={() => onOpen(c.id)} style={s.hrow}>
-            <View style={[s.hav, { backgroundColor: colorFor(i) + '2e' }]}>
-              <Text style={[s.havTx, { color: colorFor(i) }]}>{c.person_name[0]}</Text>
-            </View>
-            <View style={s.hinfo}>
-              <Text style={s.htitle}>{c.title}</Text>
-              <Text style={s.hmeta}>{c.person_name} · {c.duration} · {c.created_at?.slice(0, 10)}</Text>
-            </View>
-            <View style={[s.htension, { backgroundColor: assertiveColor(c.assertive ?? c.tension) + '22' }]}>
-              <Text style={[s.htensionTx, { color: assertiveColor(c.assertive ?? c.tension) }]}>
-                {c.assertive ?? c.tension}%
-              </Text>
-            </View>
+          <View key={c.id} style={s.hrow}>
+            <TouchableOpacity onPress={() => onOpen(c.id)} style={s.hopen}>
+              <View style={[s.hav, { backgroundColor: colorFor(i) + '2e' }]}>
+                <Text style={[s.havTx, { color: colorFor(i) }]}>{c.person_name[0]}</Text>
+              </View>
+              <View style={s.hinfo}>
+                <Text style={s.htitle}>{c.title}</Text>
+                <Text style={s.hmeta}>{c.person_name} · {c.duration} · {c.created_at?.slice(0, 10)}</Text>
+              </View>
+              <View style={[s.htension, { backgroundColor: assertiveColor(c.assertive ?? c.tension) + '22' }]}>
+                <Text style={[s.htensionTx, { color: assertiveColor(c.assertive ?? c.tension) }]}>
+                  {c.assertive ?? c.tension}%
+                </Text>
+              </View>
+            </TouchableOpacity>
             <TouchableOpacity
-              onPress={() => Alert.alert(
+              onPress={() => confirmDestructive(
                 'Delete conversation',
                 'Remove this conversation?',
-                [
-                  { text: 'Cancel', style: 'cancel' },
-                  { text: 'Delete', style: 'destructive', onPress: () => onDeleteConversation(c.id) },
-                ]
+                'Delete',
+                () => onDeleteConversation(c.id)
               )}
               style={s.hdelBtn}
               hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
             >
               <Text style={s.hdelTx}>✕</Text>
             </TouchableOpacity>
-          </TouchableOpacity>
+          </View>
         ))}
       </ScrollView>
     </View>
@@ -1257,6 +1264,7 @@ const s = StyleSheet.create({
   hrow: { flexDirection: 'row', alignItems: 'center', gap: 12,
     backgroundColor: '#ffffff', borderWidth: 1, borderColor: '#e5e7eb',
     borderRadius: 14, padding: 13, marginBottom: 9 },
+  hopen: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 12 },
   hav: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
   havTx: { fontSize: 16, fontWeight: '600' },
   hinfo: { flex: 1 },
