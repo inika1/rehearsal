@@ -30,25 +30,36 @@ function humanizeForSpeech(text) {
     .replace(/\.{3,}/g, ', ');
 }
 
+function getBestVoice() {
+  const voices = window.speechSynthesis.getVoices();
+  const en = voices.filter((v) => v.lang?.startsWith('en'));
+  return en.sort((a, b) => {
+    const score = (v) => VOICE_PATTERNS.reduce((s, p) => s + (p.test(v.name) ? 5 : 0), 0);
+    return score(b) - score(a);
+  })[0] || null;
+}
+
 function speakWithSystemVoice(phrase) {
   return new Promise((resolve) => {
-    if (!window.speechSynthesis) {
-      resolve();
-      return;
-    }
+    if (!window.speechSynthesis) { resolve(); return; }
     window.speechSynthesis.cancel();
-    const u = new SpeechSynthesisUtterance(phrase);
-    u.rate = RATE;
-    u.pitch = PITCH;
-    const voices = window.speechSynthesis.getVoices();
-    const en = voices.filter((v) => v.lang?.startsWith('en'));
-    u.voice = en.sort((a, b) => {
-      const score = (v) => VOICE_PATTERNS.reduce((s, p) => s + (p.test(v.name) ? 5 : 0), 0);
-      return score(b) - score(a);
-    })[0];
-    u.onend = resolve;
-    u.onerror = resolve;
-    window.speechSynthesis.speak(u);
+
+    // iOS Safari stops after the first sentence with a single utterance — split and chain
+    const sentences = phrase.match(/[^.!?]+[.!?]*\s*/g)?.map((s) => s.trim()).filter(Boolean) || [phrase];
+    const voice = getBestVoice();
+
+    let i = 0;
+    const next = () => {
+      if (i >= sentences.length) { resolve(); return; }
+      const u = new SpeechSynthesisUtterance(sentences[i++]);
+      u.rate = RATE;
+      u.pitch = PITCH;
+      if (voice) u.voice = voice;
+      u.onend = next;
+      u.onerror = next;
+      window.speechSynthesis.speak(u);
+    };
+    next();
   });
 }
 
