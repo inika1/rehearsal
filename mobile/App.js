@@ -595,12 +595,16 @@ function CallScreen({ person, conversation, messages, setMessages, onEnd }) {
   const [input, setInput] = useState('');
   const [busy, setBusy] = useState(false);
   const [listening, setListening] = useState(false);
+  const [paused, setPaused] = useState(false);
   const [inputHeight, setInputHeight] = useState(44);
   const timer = useRef(null);
   const scrollRef = useRef(null);
   const webRecognition = useRef(null);
   const busyRef = useRef(false);
   const activeRef = useRef(true);
+  const pausedRef = useRef(false);
+  const pendingCoachRef = useRef(null);
+  const coachDeliveryRef = useRef(null);
   const sendRef = useRef(null);
   const secsRef = useRef(0);
   const messagesRef = useRef(messages);
@@ -625,8 +629,71 @@ function CallScreen({ person, conversation, messages, setMessages, onEnd }) {
     stopCoachSpeech();
   };
 
-  const scheduleSpeechSend = (text) => {
+  const deliverCoachReply = async ({ reply, audio, done = false }) => {
+    const text = reply || "Go on — tell me more.";
+    coachDeliveryRef.current = { reply: text, audio, done };
+    setMessages((m) => {
+      const last = m[m.length - 1];
+      if (last?.role === 'them' && last.content === text) return m;
+      return [...m, { role: 'them', content: text }];
+    });
+    busyRef.current = true;
+    setBusy(true);
+    await speakCoachText(text, { audioBase64: audio });
     if (!activeRef.current) return;
+    if (pausedRef.current) {
+      pendingCoachRef.current = { reply: text, audio, done };
+      busyRef.current = false;
+      setBusy(false);
+      return;
+    }
+    coachDeliveryRef.current = null;
+    pendingCoachRef.current = null;
+    busyRef.current = false;
+    setBusy(false);
+    if (done) {
+      stopCallAudio({ updateState: false });
+      setTimeout(() => {
+        if (!pausedRef.current) onEnd(fmt(secsRef.current), true);
+      }, 2000);
+    }
+  };
+
+  const flushPendingCoach = async () => {
+    const pending = pendingCoachRef.current;
+    if (!pending || pausedRef.current || !activeRef.current) return;
+    pendingCoachRef.current = null;
+    await deliverCoachReply(pending);
+  };
+
+  const pauseCall = () => {
+    if (pausedRef.current || !activeRef.current) return;
+    pausedRef.current = true;
+    setPaused(true);
+    clearTimeout(silenceTimer.current);
+    silenceTimer.current = null;
+    pendingTextRef.current = '';
+    recognitionBaseText.current = '';
+    if (Platform.OS === 'web') webRecognition.current?.abort();
+    else ExpoSpeechRecognitionModule.stop();
+    setListening(false);
+    stopCoachSpeech();
+    if (coachDeliveryRef.current) {
+      pendingCoachRef.current = coachDeliveryRef.current;
+    }
+    busyRef.current = false;
+    setBusy(false);
+  };
+
+  const resumeCall = () => {
+    if (!activeRef.current || !pausedRef.current) return;
+    pausedRef.current = false;
+    setPaused(false);
+    if (pendingCoachRef.current) flushPendingCoach();
+  };
+
+  const scheduleSpeechSend = (text) => {
+    if (!activeRef.current || pausedRef.current) return;
     const trimmed = text.trim();
     if (!trimmed) return;
     pendingTextRef.current = trimmed;
@@ -637,12 +704,12 @@ function CallScreen({ person, conversation, messages, setMessages, onEnd }) {
       recognitionBaseText.current = '';
       silenceTimer.current = null;
       setInput('');
-      if (finalText && activeRef.current) sendRef.current(finalText);
+      if (finalText && activeRef.current && !pausedRef.current) sendRef.current(finalText);
     }, SPEECH_SILENCE_MS);
   };
 
   const startListening = async () => {
-    if (busyRef.current || !activeRef.current) return;
+    if (busyRef.current || !activeRef.current || pausedRef.current) return;
     if (!pendingTextRef.current) setInput('');
     recognitionBaseText.current = pendingTextRef.current ? `${pendingTextRef.current} ` : '';
     if (Platform.OS === 'web') {
@@ -654,7 +721,7 @@ function CallScreen({ person, conversation, messages, setMessages, onEnd }) {
       rec.continuous = true;
       rec.interimResults = true;
       rec.onstart = () => {
-        if (!activeRef.current) {
+        if (!activeRef.current || pausedRef.current) {
           rec.abort();
           return;
         }
@@ -676,7 +743,7 @@ function CallScreen({ person, conversation, messages, setMessages, onEnd }) {
       rec.start();
     } else {
       const { granted } = await ExpoSpeechRecognitionModule.requestPermissionsAsync();
-      if (!activeRef.current) return;
+      if (!activeRef.current || pausedRef.current) return;
       if (!granted) return;
       setListening(true);
       ExpoSpeechRecognitionModule.start({ lang: 'en-US', interimResults: true });
@@ -684,7 +751,7 @@ function CallScreen({ person, conversation, messages, setMessages, onEnd }) {
   };
 
   const sendText = async (text) => {
-    if (!text || busyRef.current) return;
+    if (!text || busyRef.current || pausedRef.current) return;
     clearTimeout(silenceTimer.current);
     silenceTimer.current = null;
     pendingTextRef.current = '';
@@ -696,32 +763,34 @@ function CallScreen({ person, conversation, messages, setMessages, onEnd }) {
     setMessages((m) => [...m, { role: 'me', content: text }]);
     setInput('');
     setInputHeight(44);
-    let reply = '';
-    let done = false;
-    let audio = null;
+    let payload = null;
     try {
       const data = await api.sendTurn(conversation.id, text);
       if (!activeRef.current) return;
-      reply = data?.reply || '';
-      done = data?.done || false;
-      audio = data?.audio || null;
+      payload = {
+        reply: data?.reply || '',
+        audio: data?.audio || null,
+        done: data?.done || false,
+      };
     } catch (_) {}
     if (!activeRef.current) return;
-    if (!reply) reply = "Go on — tell me more.";
-    setMessages((m) => [...m, { role: 'them', content: reply }]);
-    await speakCoachText(reply, { audioBase64: audio });
-    if (!activeRef.current) return;
-    busyRef.current = false;
-    setBusy(false);
-    if (done) {
-      stopCallAudio({ updateState: false });
-      setTimeout(() => onEnd(fmt(secsRef.current), true), 2000);
+    if (!payload) {
+      busyRef.current = false;
+      setBusy(false);
+      return;
     }
+    if (pausedRef.current) {
+      pendingCoachRef.current = payload;
+      busyRef.current = false;
+      setBusy(false);
+      return;
+    }
+    await deliverCoachReply(payload);
   };
   sendRef.current = sendText;
 
   useSpeechRecognitionEvent('result', (event) => {
-    if (!activeRef.current) return;
+    if (!activeRef.current || pausedRef.current) return;
     if (Platform.OS === 'web') return;
     const text = `${recognitionBaseText.current}${event.results[0]?.transcript ?? ''}`.trim();
     setInput(text);
@@ -731,7 +800,7 @@ function CallScreen({ person, conversation, messages, setMessages, onEnd }) {
   useSpeechRecognitionEvent('end', () => {
     if (Platform.OS !== 'web') {
       setListening(false);
-      if (!activeRef.current) return;
+      if (!activeRef.current || pausedRef.current) return;
       if (pendingTextRef.current.trim() && !silenceTimer.current) scheduleSpeechSend(pendingTextRef.current);
     }
   });
@@ -743,31 +812,36 @@ function CallScreen({ person, conversation, messages, setMessages, onEnd }) {
 
   // Auto-start listening whenever idle
   useEffect(() => {
-    if (!busy && !listening && activeRef.current) {
-      const t = setTimeout(startListening, 300);
+    if (!busy && !listening && activeRef.current && !paused && !pendingCoachRef.current) {
+      const t = setTimeout(() => {
+        if (!busyRef.current && !pausedRef.current && !pendingCoachRef.current) startListening();
+      }, 300);
       return () => clearTimeout(t);
     }
-  }, [busy, listening]);
+  }, [busy, listening, paused]);
 
   useEffect(() => {
     if (!input) setInputHeight(44);
   }, [input]);
 
-  // Timer + speak opening coach message (audio prefetched when conversation started)
   useEffect(() => {
+    if (paused) return undefined;
     timer.current = setInterval(() => setSecs((n) => { secsRef.current = n + 1; return n + 1; }), 1000);
+    return () => clearInterval(timer.current);
+  }, [paused]);
+
+  // Speak opening coach message (audio prefetched when conversation started)
+  useEffect(() => {
     const first = messages.find((m) => m.role === 'them');
     if (first) {
-      busyRef.current = true;
-      setBusy(true);
-      speakCoachText(first.content, { audioBase64: conversation?.opening_audio }).then(() => {
-        if (!activeRef.current) return;
-        busyRef.current = false;
-        setBusy(false);
-      });
+      const payload = { reply: first.content, audio: conversation?.opening_audio, done: false };
+      if (pausedRef.current) {
+        pendingCoachRef.current = payload;
+        return;
+      }
+      deliverCoachReply(payload);
     }
     return () => {
-      clearInterval(timer.current);
       stopCallAudio({ updateState: false });
     };
   }, []);
@@ -776,11 +850,13 @@ function CallScreen({ person, conversation, messages, setMessages, onEnd }) {
     <KeyboardAvoidingView style={s.callWrap} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
       <View style={s.callCard}>
         <Text style={s.callName}>Coach</Text>
-        <Text style={s.timer}>{fmt(secs)}</Text>
+        <Text style={[s.timer, paused && s.timerPaused]}>
+          {paused ? `Paused · ${fmt(secs)}` : fmt(secs)}
+        </Text>
         <View style={s.callAvatar}>
           <Text style={s.callAvatarTx}>C</Text>
         </View>
-        <View style={s.wave}>
+        <View style={[s.wave, paused && { opacity: 0.12 }]}>
           {Array.from({ length: 7 }).map((_, i) => <WaveBar key={i} delay={i * 120} />)}
         </View>
         <ScrollView
@@ -814,12 +890,17 @@ function CallScreen({ person, conversation, messages, setMessages, onEnd }) {
           <TextInput
             style={[s.callInputField, { height: inputHeight }]}
             value={input}
-            placeholder={listening ? 'Listening…' : busy ? 'Coach is replying…' : 'Say something…'}
-            placeholderTextColor={listening ? '#1e40af' : 'rgba(0,0,0,.3)'}
+            placeholder={
+              paused ? 'Paused — tap resume to continue'
+                : listening ? 'Listening…'
+                : busy ? 'Coach is replying…'
+                : 'Say something…'
+            }
+            placeholderTextColor={paused ? 'rgba(0,0,0,.35)' : listening ? '#1e40af' : 'rgba(0,0,0,.3)'}
             onChangeText={setInput}
             onSubmitEditing={() => sendText(input.trim())}
             returnKeyType="send"
-            editable={!listening && !busy}
+            editable={!listening && !busy && !paused}
             multiline
             scrollEnabled={inputHeight >= 96}
             textAlignVertical="top"
@@ -829,19 +910,33 @@ function CallScreen({ person, conversation, messages, setMessages, onEnd }) {
               setInputHeight(nextHeight);
             }}
           />
-          <TouchableOpacity onPress={() => sendText(input.trim())} style={s.sendBtn}>
+          <TouchableOpacity
+            onPress={() => sendText(input.trim())}
+            style={[s.sendBtn, (listening || busy || paused) && s.sendBtnDisabled]}
+            disabled={listening || busy || paused}
+          >
             <Text style={s.sendBtnTx}>↑</Text>
           </TouchableOpacity>
         </View>
       </View>
 
+      <TouchableOpacity
+        onPress={paused ? resumeCall : pauseCall}
+        style={[s.pauseBtn, paused && s.pauseBtnActive]}
+      >
+        <Text style={[s.pauseBtnTx, paused && s.pauseBtnTxActive]}>
+          {paused ? '▶  Resume' : '⏸  Pause'}
+        </Text>
+      </TouchableOpacity>
       <TouchableOpacity onPress={() => {
         stopCallAudio();
-        onEnd(fmt(secs), messagesRef.current.some((m) => m.role === 'me'));
+        onEnd(fmt(secsRef.current), messagesRef.current.some((m) => m.role === 'me'));
       }} style={s.endBtn}>
         <Text style={s.endBtnTx}>📞</Text>
       </TouchableOpacity>
-      <Text style={s.hint}>End call to see your insights</Text>
+      <Text style={s.hint}>
+        {paused ? 'Session paused — resume when you\'re ready' : 'End call to see your insights'}
+      </Text>
     </KeyboardAvoidingView>
   );
 }
@@ -1146,6 +1241,7 @@ const s = StyleSheet.create({
     shadowColor: '#000', shadowOpacity: 0.06, shadowRadius: 12, shadowOffset: { width: 0, height: 2 } },
   callName: { fontSize: 28, fontWeight: '700', color: '#111827' },
   timer: { fontSize: 14, color: 'rgba(0,0,0,.35)', marginTop: 4 },
+  timerPaused: { color: '#b45309', fontWeight: '600' },
   callAvatar: { width: 88, height: 88, borderRadius: 44, backgroundColor: '#dbeafe',
     borderWidth: 2, borderColor: '#93c5fd', alignItems: 'center', justifyContent: 'center', marginBottom: 16, marginTop: 4 },
   callAvatarTx: { fontSize: 32, fontWeight: '700', color: '#1e3a8a' },
@@ -1171,7 +1267,20 @@ const s = StyleSheet.create({
   micBtn: { width: 42, height: 44, borderRadius: 12, backgroundColor: '#dbeafe', alignItems: 'center', justifyContent: 'center' },
   micBtnActive: { backgroundColor: 'rgba(229,77,77,.15)' },
   sendBtn: { width: 42, borderRadius: 12, backgroundColor: '#1e3a8a', alignItems: 'center', justifyContent: 'center' },
+  sendBtnDisabled: { opacity: 0.45 },
   sendBtnTx: { color: '#ffffff', fontSize: 16, fontWeight: '600' },
+  pauseBtn: {
+    marginBottom: 12,
+    paddingHorizontal: 22,
+    paddingVertical: 11,
+    borderRadius: 22,
+    backgroundColor: '#ffffff',
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
+  },
+  pauseBtnActive: { backgroundColor: '#fff7ed', borderColor: '#fdba74' },
+  pauseBtnTx: { fontSize: 14, fontWeight: '600', color: '#374151' },
+  pauseBtnTxActive: { color: '#c2410c' },
   endBtn: { width: 72, height: 72, borderRadius: 36, backgroundColor: '#fecaca',
     alignItems: 'center', justifyContent: 'center',
     shadowColor: '#ef4444', shadowOpacity: 0.12, shadowRadius: 8, shadowOffset: { width: 0, height: 2 } },

@@ -147,6 +147,7 @@ function CallScreen({ person, conversation, messages, setMessages, onEnd }) {
   const [input, setInput] = useState('');
   const [busy, setBusy] = useState(false);
   const [listening, setListening] = useState(false);
+  const [paused, setPaused] = useState(false);
   const timer = useRef(null);
   const inputRef = useRef(null);
   const recog = useRef(null);
@@ -155,7 +156,11 @@ function CallScreen({ person, conversation, messages, setMessages, onEnd }) {
   const silenceTimer = useRef(null);
   const busyRef = useRef(false);
   const activeRef = useRef(true);
+  const pausedRef = useRef(false);
+  const pendingCoachRef = useRef(null);
+  const coachDeliveryRef = useRef(null);
   const sendRef = useRef(null);
+  const secsRef = useRef(0);
 
   const fmt = (s) => `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`;
 
@@ -171,8 +176,64 @@ function CallScreen({ person, conversation, messages, setMessages, onEnd }) {
     stopCoachSpeech();
   };
 
-  const scheduleSpeechSend = (text) => {
+  const deliverCoachReply = async ({ reply, audio, done = false }) => {
+    const text = reply || "Go on — tell me more.";
+    coachDeliveryRef.current = { reply: text, audio, done };
+    setMessages((m) => {
+      const last = m[m.length - 1];
+      if (last?.role === 'them' && last.content === text) return m;
+      return [...m, { role: 'them', content: text }];
+    });
+    busyRef.current = true;
+    setBusy(true);
+    await speakCoachText(text, { audioBase64: audio });
     if (!activeRef.current) return;
+    if (pausedRef.current) {
+      pendingCoachRef.current = { reply: text, audio, done };
+      busyRef.current = false;
+      setBusy(false);
+      return;
+    }
+    coachDeliveryRef.current = null;
+    pendingCoachRef.current = null;
+    busyRef.current = false;
+    setBusy(false);
+  };
+
+  const flushPendingCoach = async () => {
+    const pending = pendingCoachRef.current;
+    if (!pending || pausedRef.current || !activeRef.current) return;
+    pendingCoachRef.current = null;
+    await deliverCoachReply(pending);
+  };
+
+  const pauseCall = () => {
+    if (pausedRef.current || !activeRef.current) return;
+    pausedRef.current = true;
+    setPaused(true);
+    clearTimeout(silenceTimer.current);
+    silenceTimer.current = null;
+    pendingText.current = '';
+    recognitionBaseText.current = '';
+    recog.current?.abort();
+    setListening(false);
+    stopCoachSpeech();
+    if (coachDeliveryRef.current) {
+      pendingCoachRef.current = coachDeliveryRef.current;
+    }
+    busyRef.current = false;
+    setBusy(false);
+  };
+
+  const resumeCall = () => {
+    if (!activeRef.current || !pausedRef.current) return;
+    pausedRef.current = false;
+    setPaused(false);
+    if (pendingCoachRef.current) flushPendingCoach();
+  };
+
+  const scheduleSpeechSend = (text) => {
+    if (!activeRef.current || pausedRef.current) return;
     const trimmed = text.trim();
     if (!trimmed) return;
     pendingText.current = trimmed;
@@ -183,12 +244,12 @@ function CallScreen({ person, conversation, messages, setMessages, onEnd }) {
       recognitionBaseText.current = '';
       silenceTimer.current = null;
       setInput('');
-      if (finalText && activeRef.current) sendRef.current(finalText);
+      if (finalText && activeRef.current && !pausedRef.current) sendRef.current(finalText);
     }, SPEECH_SILENCE_MS);
   };
 
   const send = async (text) => {
-    if (!text.trim() || busyRef.current) return;
+    if (!text.trim() || busyRef.current || pausedRef.current) return;
     clearTimeout(silenceTimer.current);
     silenceTimer.current = null;
     pendingText.current = '';
@@ -198,40 +259,52 @@ function CallScreen({ person, conversation, messages, setMessages, onEnd }) {
     recog.current?.abort();
     setMessages((m) => [...m, { role: 'me', content: text }]);
     setInput('');
-    const data = await api.sendTurn(conversation.id, text);
-    if (!activeRef.current) return;
-    const reply = data?.reply;
-    if (reply) {
-      const speakPromise = speakCoachText(reply, { audioBase64: data?.audio });
-      setMessages((m) => [...m, { role: 'them', content: reply }]);
-      await speakPromise;
+    let payload = null;
+    try {
+      const data = await api.sendTurn(conversation.id, text);
       if (!activeRef.current) return;
+      if (data?.reply) {
+        payload = { reply: data.reply, audio: data?.audio, done: data?.done || false };
+      }
+    } catch (_) {}
+    if (!activeRef.current) return;
+    if (!payload) {
+      busyRef.current = false;
+      setBusy(false);
+      return;
     }
-    busyRef.current = false;
-    setBusy(false);
+    if (pausedRef.current) {
+      pendingCoachRef.current = payload;
+      busyRef.current = false;
+      setBusy(false);
+      return;
+    }
+    await deliverCoachReply(payload);
   };
   sendRef.current = send;
 
   useEffect(() => {
     const first = messages.find((m) => m.role === 'them');
     if (first) {
-      busyRef.current = true;
-      setBusy(true);
-      speakCoachText(first.content, { audioBase64: conversation?.opening_audio }).then(() => {
-        if (!activeRef.current) return;
-        busyRef.current = false;
-        setBusy(false);
-      });
+      const payload = { reply: first.content, audio: conversation?.opening_audio, done: false };
+      if (pausedRef.current) {
+        pendingCoachRef.current = payload;
+        return;
+      }
+      deliverCoachReply(payload);
     }
   }, []);
 
   useEffect(() => () => stopCoachSpeech(), []);
 
-  // Timer
   useEffect(() => {
-    timer.current = setInterval(() => setSecs((s) => s + 1), 1000);
+    if (paused) return undefined;
+    timer.current = setInterval(() => setSecs((s) => {
+      secsRef.current = s + 1;
+      return s + 1;
+    }), 1000);
     return () => clearInterval(timer.current);
-  }, []);
+  }, [paused]);
 
   // Speech recognition: auto-start whenever not busy and not already listening
   useEffect(() => {
@@ -243,14 +316,14 @@ function CallScreen({ person, conversation, messages, setMessages, onEnd }) {
     r.interimResults = true;
     r.lang = 'en-US';
     r.onstart = () => {
-      if (!activeRef.current) {
+      if (!activeRef.current || pausedRef.current) {
         r.abort();
         return;
       }
       setListening(true);
     };
     r.onresult = (e) => {
-      if (!activeRef.current) return;
+      if (!activeRef.current || pausedRef.current) return;
       let text = '';
       for (let i = 0; i < e.results.length; i++) text += e.results[i][0].transcript;
       text = `${recognitionBaseText.current}${text}`.trim();
@@ -259,7 +332,7 @@ function CallScreen({ person, conversation, messages, setMessages, onEnd }) {
     };
     r.onend = () => {
       setListening(false);
-      if (!activeRef.current) return;
+      if (!activeRef.current || pausedRef.current) return;
       if (pendingText.current.trim() && !silenceTimer.current) scheduleSpeechSend(pendingText.current);
     };
     r.onerror = () => setListening(false);
@@ -270,16 +343,16 @@ function CallScreen({ person, conversation, messages, setMessages, onEnd }) {
   }, []);
 
   useEffect(() => {
-    if (!busy && !listening && activeRef.current) {
+    if (!busy && !listening && activeRef.current && !paused && !pendingCoachRef.current) {
       const t = setTimeout(() => {
-        if (!busyRef.current && activeRef.current) {
+        if (!busyRef.current && activeRef.current && !pausedRef.current && !pendingCoachRef.current) {
           recognitionBaseText.current = pendingText.current ? `${pendingText.current} ` : '';
           try { recog.current?.start(); } catch {}
         }
       }, 300);
       return () => clearTimeout(t);
     }
-  }, [busy, listening]);
+  }, [busy, listening, paused]);
 
   useEffect(() => {
     if (!inputRef.current) return;
@@ -291,9 +364,11 @@ function CallScreen({ person, conversation, messages, setMessages, onEnd }) {
   return (
     <div className="call-wrap">
       <div className="call-name">{person.name}</div>
-      <div className="timer">{fmt(secs)}</div>
+      <div className={`timer${paused ? ' timer-paused' : ''}`}>
+        {paused ? `Paused · ${fmt(secs)}` : fmt(secs)}
+      </div>
       <div className="call-avatar">{person.name[0]}</div>
-      <div className="wave" style={{ opacity: listening ? 1 : busy ? 0.4 : 0.15 }}>
+      <div className="wave" style={{ opacity: paused ? 0.08 : listening ? 1 : busy ? 0.4 : 0.15 }}>
         {Array.from({ length: 7 }).map((_, i) => <span key={i} style={{ animationDelay: `${i * 0.12}s` }} />)}
       </div>
       <div className="mini-transcript">
@@ -306,23 +381,38 @@ function CallScreen({ person, conversation, messages, setMessages, onEnd }) {
         <textarea ref={inputRef}
           value={input}
           rows={1}
-          placeholder={listening ? 'Listening…' : busy ? 'Coach is replying…' : 'Type or say something…'}
+          placeholder={
+            paused ? 'Paused — tap resume to continue'
+              : listening ? 'Listening…'
+              : busy ? 'Coach is replying…'
+              : 'Type or say something…'
+          }
+          disabled={paused || busy || listening}
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={(e) => {
-            if (e.key === 'Enter' && !e.shiftKey && !busy) {
+            if (e.key === 'Enter' && !e.shiftKey && !busy && !paused) {
               e.preventDefault();
               send(input);
             }
           }} />
-        <button onClick={() => send(input)}>↑</button>
+        <button onClick={() => send(input)} disabled={paused || busy || listening}>↑</button>
       </div>
+      <button
+        type="button"
+        className={`pausebtn${paused ? ' active' : ''}`}
+        onClick={paused ? resumeCall : pauseCall}
+      >
+        {paused ? '▶ Resume' : '⏸ Pause'}
+      </button>
       <div className="endbtn" onClick={() => {
         stopCallAudio();
-        onEnd(fmt(secs));
+        onEnd(fmt(secsRef.current));
       }}>
         <svg width="26" height="26" viewBox="0 0 24 24" fill="none"><path d="M6.5 3h3l1.5 4.5L9 9.5a12 12 0 005.5 5.5l2-2 4.5 1.5v3a2 2 0 01-2 2A16 16 0 014 5a2 2 0 012-2z" stroke="#fff" strokeWidth="2" strokeLinejoin="round" transform="rotate(135 12 12)" /></svg>
       </div>
-      <div className="hint">End call to see your insights</div>
+      <div className="hint">
+        {paused ? 'Session paused — resume when you\'re ready' : 'End call to see your insights'}
+      </div>
     </div>
   );
 }

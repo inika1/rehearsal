@@ -65,7 +65,7 @@ router.post('/', async (req, res) => {
     .single();
   if (error) return res.status(500).json({ error: error.message });
 
-  const firstQuestion = `Let's test prep you for this conversation. What do you want to say to ${personData.name} — just say it out loud, don't filter it yet.`;
+  const firstQuestion = `Let's prep you for this conversation. What do you want to say to ${personData.name} — just say it out loud, don't filter it yet.`;
   const [_, openingAudio] = await Promise.all([
     supabase
       .from('messages')
