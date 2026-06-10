@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import {
   displayHeadline, displayIssueSummary, resolveInsights, STYLE_METERS,
 } from './insightsView.js';
-import { configureCoachSpeech, speakCoachText, stopCoachSpeech } from './coachSpeech.js';
+import { configureCoachSpeech, speakCoachText, stopCoachSpeech, unlockAudio } from './coachSpeech.js';
 
 const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 const SPEECH_SILENCE_MS = 3000;
@@ -52,6 +52,7 @@ export default function App() {
   };
 
   const startCall = async () => {
+    unlockAudio(); // must run synchronously inside the tap gesture to satisfy iOS autoplay policy
     const title = situation.split(' ').slice(0, 3).join(' ') || 'Untitled';
     const conv = await api.startConversation(person.id, title, situation);
     setConversation(conv);

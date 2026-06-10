@@ -3,11 +3,29 @@ const PITCH = 0.98;
 
 let speechApiUrl = null;
 let activeAudio = null;
+let sharedAudio = null; // one persistent element, unlocked via user gesture
 
 const VOICE_PATTERNS = [/enhanced/i, /premium/i, /neural/i, /samantha/i, /karen/i, /serena/i];
 
 export function configureCoachSpeech(apiUrl) {
   speechApiUrl = apiUrl?.replace(/\/$/, '') || null;
+}
+
+// Call this synchronously inside the tap/click handler that starts the session.
+// iOS Safari blocks audio created outside a user gesture; priming the shared element
+// here satisfies the policy for all subsequent programmatic playback.
+export function unlockAudio() {
+  if (typeof window === 'undefined') return;
+  if (!sharedAudio) {
+    sharedAudio = new Audio();
+    sharedAudio.preload = 'auto';
+  }
+  sharedAudio.play().catch(() => {});
+  if (window.speechSynthesis) {
+    const u = new SpeechSynthesisUtterance('');
+    window.speechSynthesis.speak(u);
+    window.speechSynthesis.cancel();
+  }
 }
 
 export function stopCoachSpeech() {
@@ -70,20 +88,26 @@ function playMp3Base64(base64) {
   for (let i = 0; i < binary.length; i += 1) bytes[i] = binary.charCodeAt(i);
   const blob = new Blob([bytes], { type: 'audio/mpeg' });
   const url = URL.createObjectURL(blob);
-  const audio = new Audio(url);
-  audio.preload = 'auto';
+
+  // Reuse the shared element (already unlocked by unlockAudio()) so iOS allows playback.
+  // Creating a new Audio() each time breaks on iOS because it wasn't started from a gesture.
+  if (!sharedAudio) sharedAudio = new Audio();
+  const audio = sharedAudio;
+  audio.onended = null;
+  audio.onerror = null;
+  audio.src = url;
+  audio.load();
   activeAudio = audio;
+
   return new Promise((resolve) => {
-    audio.onended = () => {
+    const done = () => {
       URL.revokeObjectURL(url);
       if (activeAudio === audio) activeAudio = null;
       resolve();
     };
-    audio.onerror = () => {
-      URL.revokeObjectURL(url);
-      resolve();
-    };
-    audio.play().catch(resolve);
+    audio.onended = done;
+    audio.onerror = done;
+    audio.play().catch(done);
   });
 }
 
