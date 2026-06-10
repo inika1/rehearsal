@@ -11,7 +11,7 @@ const GUIDED_QUESTIONS = [
   `What impact did that have on you personally? How did it affect you?`,
   `What do you actually need from them? What would feel better going forward?`,
   `What would a good outcome look like — what are you hoping changes after this conversation?`,
-  `Let's put it together as an I-statement: "I feel [emotion] when [specific thing], because [impact]. I'd like [need]." Try it.`,
+  `You've covered everything you need. Is there anything else you want to add before we wrap up?`,
 ];
 
 const ANALYSIS_SCHEMA = `{
@@ -76,13 +76,14 @@ export async function replyAs(person, situation, history) {
     `(their ${person.relationship || 'contact'}) about: "${situation}". ` +
     `Your only job is to help them get clear on what they want to say — not to roleplay as ${person.name}, ` +
     `not to judge their words. Ask questions that help them articulate their feelings, ` +
-    `name the specific thing that happened, understand the impact it had on them, figure out what they need, ` +
-    `and eventually put it into one clear I-statement: "I feel X when Y, because Z. I'd like W." ` +
+    `name the specific thing that happened, understand the impact it had on them, and figure out what they need. ` +
     `Ask one question at a time. Keep replies short — 1-2 sentences, like natural spoken English (contractions are fine). ` +
     `Sound warm and human, not stiff or robotic — no lists or jargon. ` +
-    `Once the user has covered feelings, the specific event, the impact, their need, AND has attempted an I-statement ` +
-    `(or clearly shown they are ready), wrap up with an encouraging closing line and set done to true. ` +
-    `If you would repeat a question you have already asked, set done to true instead. ` +
+    `Once you have gathered their emotion, the specific event, the impact it had on them, and what they need — ` +
+    `construct the I-statement yourself using their words: "I feel [emotion] when [specific event], because [impact]. I'd like [need]." ` +
+    `Present it to them, then ask: "Is there anything else you want to add or change before you go?" Set done to false for that message. ` +
+    `On the very next reply after presenting the I-statement — whether they add something or say they're ready — ` +
+    `give a brief encouraging closing (incorporating any addition they made) and set done to true. ` +
     `ALWAYS respond with JSON only — no markdown, no extra text: {"reply": "<your message>", "done": <true|false>}`;
 
   const messages = history.map((m) => ({
