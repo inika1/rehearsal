@@ -177,6 +177,39 @@ body {
 .cta.ghost { background: transparent; color: rgba(255,255,255,.4); border: 1px solid rgba(255,255,255,.12);
   font-weight: 400; margin-top: 0; }
 
+/* logout button */
+.logout-btn { margin: 10px 20px 24px; padding: 14px; background: transparent;
+  border: 1px solid rgba(255,255,255,.1); border-radius: 14px; color: rgba(255,255,255,.4);
+  font-size: 15px; font-weight: 500; font-family: inherit; cursor: pointer; width: calc(100% - 40px); }
+.logout-btn:hover { background: rgba(255,255,255,.05); }
+
+/* login screen */
+.login-wrap { justify-content: center; padding: 28px 24px 32px; gap: 0; }
+.login-brand { font-size: 32px; font-weight: 700; color: #f0e6d3; text-align: center; margin-bottom: 6px; }
+.login-tagline { font-size: 13px; color: rgba(255,255,255,.4); text-align: center; line-height: 1.5; margin-bottom: 28px; }
+.login-card { display: flex; flex-direction: column; gap: 10px; margin-bottom: 14px; width: 100%; }
+.login-input { background: rgba(255,255,255,.07); border: 1px solid rgba(255,255,255,.12);
+  border-radius: 12px; padding: 13px 14px; color: #f0e6d3; font-size: 14px;
+  font-family: inherit; outline: none; width: 100%; }
+.login-input::placeholder { color: rgba(255,255,255,.3); }
+.login-input:focus { border-color: rgba(196,169,110,.5); }
+.login-error { font-size: 12px; color: #e54d4d; text-align: center; }
+.login-btn { background: #c4a96e; color: #0e0e1a; border: none; border-radius: 12px;
+  padding: 14px; font-size: 15px; font-weight: 600; font-family: inherit; cursor: pointer; }
+.login-btn:hover { opacity: .9; }
+.login-btn:disabled { opacity: .5; cursor: default; }
+.login-switch { background: none; border: none; color: rgba(255,255,255,.4); font-size: 13px;
+  font-family: inherit; cursor: pointer; text-align: center; margin-bottom: 16px; }
+.login-switch:hover { color: rgba(255,255,255,.6); }
+.login-divider { display: flex; align-items: center; margin-bottom: 14px; color: rgba(255,255,255,.2);
+  font-size: 12px; gap: 10px; }
+.login-divider::before, .login-divider::after { content: ''; flex: 1; height: 1px; background: rgba(255,255,255,.1); }
+.demo-btn { background: rgba(255,255,255,.05); border: 1px solid rgba(255,255,255,.1);
+  border-radius: 12px; padding: 13px; color: rgba(255,255,255,.5); font-size: 14px;
+  font-family: inherit; cursor: pointer; }
+.demo-btn:hover { background: rgba(255,255,255,.08); }
+.demo-btn:disabled { opacity: .5; cursor: default; }
+
 /* Desktop: bigger phone frame + larger text */
 @media (min-width: 601px) {
   .phone { width: 460px; height: 860px; }

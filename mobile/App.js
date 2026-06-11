@@ -470,22 +470,8 @@ function ChooseScreen({ people, onPick, onAdd, userEmail, onLogout }) {
   return (
     <View style={s.scr}>
       <View style={s.choosePad}>
-        <View style={s.chooseHeader}>
-          <View>
-            <Text style={s.ttl}>Who do you need help talking to?</Text>
-            <Text style={s.sub}>Pick someone you're having a hard time with</Text>
-          </View>
-          <TouchableOpacity onPress={() => Alert.alert(
-            'Sign out',
-            userEmail ? `Signed in as ${userEmail}` : 'Sign out of your account?',
-            [
-              { text: 'Cancel', style: 'cancel' },
-              { text: 'Sign out', style: 'destructive', onPress: onLogout },
-            ]
-          )} style={s.logoutBtn}>
-            <Text style={s.logoutTx}>↪</Text>
-          </TouchableOpacity>
-        </View>
+        <Text style={s.ttl}>Who do you need help talking to?</Text>
+        <Text style={s.sub}>Pick someone you're having a hard time with</Text>
       </View>
 
       <View style={s.chooseCard}>
@@ -512,6 +498,15 @@ function ChooseScreen({ people, onPick, onAdd, userEmail, onLogout }) {
 
       <TouchableOpacity onPress={onAdd} style={s.addnew}>
         <Text style={s.addnewTx}>＋  Add new person</Text>
+      </TouchableOpacity>
+
+      <TouchableOpacity onPress={() => confirmDestructive(
+        'Log out',
+        userEmail ? `Signed in as ${userEmail}` : 'Log out of your account?',
+        'Log out',
+        onLogout
+      )} style={s.logoutBtn}>
+        <Text style={s.logoutTx}>Log out</Text>
       </TouchableOpacity>
     </View>
   );
@@ -1189,11 +1184,10 @@ const s = StyleSheet.create({
 
   // Choose screen
   choosePad: { paddingHorizontal: 24, paddingTop: 20, paddingBottom: 16 },
-  chooseHeader: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between' },
-  logoutBtn: { width: 44, height: 44, borderRadius: 12, backgroundColor: 'rgba(0,0,0,.05)',
-    borderWidth: 1, borderColor: 'rgba(0,0,0,.08)', alignItems: 'center', justifyContent: 'center',
-    marginTop: 2 },
-  logoutTx: { fontSize: 18, color: 'rgba(0,0,0,.4)' },
+  logoutBtn: { marginHorizontal: 20, marginTop: 10, marginBottom: 20, padding: 14,
+    backgroundColor: 'transparent', borderRadius: 14, borderWidth: 1,
+    borderColor: 'rgba(0,0,0,.1)', alignItems: 'center' },
+  logoutTx: { fontSize: 15, color: 'rgba(0,0,0,.4)', fontWeight: '500' },
   chooseCard: { marginHorizontal: 20, flex: 1, backgroundColor: '#ffffff', borderRadius: 18,
     borderWidth: 1, borderColor: '#e5e7eb',
     shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 8, shadowOffset: { width: 0, height: 2 },

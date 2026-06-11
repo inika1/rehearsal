@@ -9,25 +9,42 @@ import { configureCoachSpeech, speakCoachText, stopCoachSpeech, unlockAudio } fr
 const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 const SPEECH_SILENCE_MS = 3000;
 
-const j = (r) => r.json();
+let _token = null;
+const h = (extra = {}) => ({
+  'content-type': 'application/json',
+  ...(_token ? { authorization: `Bearer ${_token}` } : {}),
+  ...extra,
+});
+const j = async (r) => {
+  const data = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(data?.error || `Request failed: ${r.status}`);
+  return data;
+};
 const api = {
-  getPeople: () => fetch(`${API}/api/people`).then(j),
+  setToken: (t) => { _token = t; },
+  login: (email, password) =>
+    fetch(`${API}/api/auth/login`, { method: 'POST', headers: h(), body: JSON.stringify({ email, password }) }).then(j),
+  signup: (email, password) =>
+    fetch(`${API}/api/auth/signup`, { method: 'POST', headers: h(), body: JSON.stringify({ email, password }) }).then(j),
+  getPeople: () => fetch(`${API}/api/people`, { headers: h() }).then(j),
   addPerson: (name, relationship) =>
-    fetch(`${API}/api/people`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ name, relationship }) }).then(j),
+    fetch(`${API}/api/people`, { method: 'POST', headers: h(), body: JSON.stringify({ name, relationship }) }).then(j),
   startConversation: (person_id, title, situation) =>
-    fetch(`${API}/api/conversations`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ person_id, title, situation }) }).then(j),
+    fetch(`${API}/api/conversations`, { method: 'POST', headers: h(), body: JSON.stringify({ person_id, title, situation }) }).then(j),
   sendTurn: (id, content) =>
-    fetch(`${API}/api/conversations/${id}/turn`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ content }) }).then(j),
+    fetch(`${API}/api/conversations/${id}/turn`, { method: 'POST', headers: h(), body: JSON.stringify({ content }) }).then(j),
   finish: (id, duration) =>
-    fetch(`${API}/api/conversations/${id}/finish`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ duration }) }).then(j),
-  history: (personId) => fetch(`${API}/api/conversations${personId ? `?person_id=${personId}` : ''}`).then(j),
-  getConversation: (id) => fetch(`${API}/api/conversations/${id}`).then(j),
+    fetch(`${API}/api/conversations/${id}/finish`, { method: 'POST', headers: h(), body: JSON.stringify({ duration }) }).then(j),
+  history: (personId) => fetch(`${API}/api/conversations${personId ? `?person_id=${personId}` : ''}`, { headers: h() }).then(j),
+  getConversation: (id) => fetch(`${API}/api/conversations/${id}`, { headers: h() }).then(j),
 };
 
 const AVATAR_COLORS = ['#c4a96e', '#b8a0d4', '#9b8cf0', '#e8a23d', '#3ec46a'];
 const colorFor = (i) => AVATAR_COLORS[i % AVATAR_COLORS.length];
 
 export default function App() {
+  const [authReady, setAuthReady] = useState(false);
+  const [user, setUser] = useState(null);
   const [screen, setScreen] = useState('choose');
   const [people, setPeople] = useState([]);
   const [person, setPerson] = useState(null);
@@ -38,8 +55,51 @@ export default function App() {
 
   useEffect(() => {
     configureCoachSpeech(API);
-    api.getPeople().then(setPeople);
+    const token = localStorage.getItem('auth_token');
+    if (token) {
+      api.setToken(token);
+      api.getPeople().then((data) => {
+        if (Array.isArray(data)) {
+          setPeople(data);
+          const stored = localStorage.getItem('auth_user');
+          setUser(stored ? JSON.parse(stored) : { token });
+        } else {
+          localStorage.removeItem('auth_token');
+          localStorage.removeItem('auth_user');
+          api.setToken(null);
+        }
+        setAuthReady(true);
+      }).catch(() => {
+        localStorage.removeItem('auth_token');
+        localStorage.removeItem('auth_user');
+        api.setToken(null);
+        setAuthReady(true);
+      });
+    } else {
+      setAuthReady(true);
+    }
   }, []);
+
+  const handleAuth = async (token, userObj) => {
+    api.setToken(token);
+    localStorage.setItem('auth_token', token);
+    localStorage.setItem('auth_user', JSON.stringify(userObj));
+    const data = await api.getPeople().catch(() => []);
+    if (Array.isArray(data)) setPeople(data);
+    setUser(userObj);
+  };
+
+  const handleLogout = () => {
+    localStorage.removeItem('auth_token');
+    localStorage.removeItem('auth_user');
+    api.setToken(null);
+    setUser(null);
+    setPeople([]);
+    setPerson(null);
+    setConversation(null);
+    setMessages([]);
+    setScreen('choose');
+  };
 
   const pickPerson = (p) => { setPerson(p); setScreen('describe'); };
 
@@ -75,31 +135,36 @@ export default function App() {
     setScreen('insights');
   };
 
+  if (!authReady) return <div className="stage"><div className="phone"><div className="phone-in" /></div></div>;
+
   return (
     <div className="stage">
       <div className="phone"><div className="phone-in">
         <div className="statusbar"><span>9:41</span><span className="brand">Bridge</span><span>●●●</span></div>
 
-        {screen === 'choose' && (
-          <ChooseScreen people={people} onPick={pickPerson} onAdd={addPerson} />
+        {!user && <LoginScreen onAuth={handleAuth} />}
+
+        {user && screen === 'choose' && (
+          <ChooseScreen people={people} onPick={pickPerson} onAdd={addPerson}
+            userEmail={user?.email} onLogout={handleLogout} />
         )}
-        {screen === 'describe' && (
+        {user && screen === 'describe' && (
           <DescribeScreen person={person} situation={situation} setSituation={setSituation}
             onStart={startCall} onBack={() => setScreen('choose')} onHistory={openHistory} />
         )}
-        {screen === 'call' && (
+        {user && screen === 'call' && (
           <CallScreen person={person} conversation={conversation}
             messages={messages} setMessages={setMessages} onEnd={endCall} />
         )}
-        {screen === 'insights' && conversation && (
+        {user && screen === 'insights' && conversation && (
           <InsightsScreen conv={conversation} onHome={() => setScreen('choose')}
             onTranscript={() => setScreen('transcript')} />
         )}
-        {screen === 'transcript' && (
+        {user && screen === 'transcript' && (
           <TranscriptScreen conv={conversation} messages={messages}
             onBack={() => setScreen('insights')} onNew={() => setScreen('choose')} />
         )}
-        {screen === 'history' && (
+        {user && screen === 'history' && (
           <HistoryScreen history={history} person={person} onOpen={openConversation} onBack={() => setScreen('describe')} />
         )}
       </div></div>
@@ -107,7 +172,64 @@ export default function App() {
   );
 }
 
-function ChooseScreen({ people, onPick, onAdd }) {
+function LoginScreen({ onAuth }) {
+  const [mode, setMode] = useState('login');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
+
+  const submit = async (e) => {
+    e?.preventDefault();
+    setError('');
+    if (!email.trim() || !password) { setError('Please enter your email and password.'); return; }
+    setLoading(true);
+    try {
+      const result = mode === 'signup'
+        ? await api.signup(email.trim(), password)
+        : await api.login(email.trim(), password);
+      await onAuth(result.token, result.user);
+    } catch (err) { setError(err?.message || 'Something went wrong. Please try again.'); }
+    setLoading(false);
+  };
+
+  const tryDemo = async () => {
+    setError('');
+    setLoading(true);
+    try {
+      let result = await api.login('demo@bridge.app', 'demo1234').catch(() => null);
+      if (!result?.token) result = await api.signup('demo@bridge.app', 'demo1234');
+      await onAuth(result.token, result.user);
+    } catch (err) { setError(err?.message || 'Could not load demo. Try again.'); }
+    setLoading(false);
+  };
+
+  return (
+    <div className="scr login-wrap">
+      <div className="login-brand">Bridge</div>
+      <div className="login-tagline">Closing the gap between intention and understanding</div>
+      <form className="login-card" onSubmit={submit}>
+        <input className="login-input" type="email" placeholder="Email" value={email}
+          onChange={(e) => setEmail(e.target.value)} autoComplete="email" />
+        <input className="login-input" type="password" placeholder="Password" value={password}
+          onChange={(e) => setPassword(e.target.value)} autoComplete="current-password" />
+        {error && <div className="login-error">{error}</div>}
+        <button className="login-btn" type="submit" disabled={loading}>
+          {loading ? '…' : mode === 'login' ? 'Sign in' : 'Create account'}
+        </button>
+      </form>
+      <button className="login-switch" onClick={() => { setMode(mode === 'login' ? 'signup' : 'login'); setError(''); }}>
+        {mode === 'login' ? "Don't have an account? Sign up" : 'Already have an account? Sign in'}
+      </button>
+      <div className="login-divider"><span>or</span></div>
+      <button className="demo-btn" onClick={tryDemo} disabled={loading}>
+        {loading ? '…' : 'Try sample login'}
+      </button>
+    </div>
+  );
+}
+
+function ChooseScreen({ people, onPick, onAdd, onLogout }) {
   return (
     <div className="scr">
       <div className="hd"><div className="ttl">Who do you need help talking to?</div><div className="sub">Pick someone you're having a hard time with</div></div>
@@ -120,6 +242,7 @@ function ChooseScreen({ people, onPick, onAdd }) {
         ))}
       </div>
       <div className="addnew" onClick={onAdd}><span style={{ fontSize: 18 }}>＋</span> Add new person</div>
+      <button className="logout-btn" onClick={onLogout}>Log out</button>
     </div>
   );
 }
