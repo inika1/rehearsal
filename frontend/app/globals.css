@@ -178,10 +178,10 @@ body {
   font-weight: 400; margin-top: 0; }
 
 /* logout button */
-.logout-btn { margin: 10px 20px 24px; padding: 14px; background: transparent;
-  border: 1px solid rgba(255,255,255,.1); border-radius: 14px; color: rgba(255,255,255,.4);
-  font-size: 15px; font-weight: 500; font-family: inherit; cursor: pointer; width: calc(100% - 40px); }
-.logout-btn:hover { background: rgba(255,255,255,.05); }
+.logout-btn { margin: 10px 20px 24px; padding: 16px 20px; background: rgba(229,77,77,.08);
+  border: 1px solid rgba(229,77,77,.3); border-radius: 14px; color: #f87171;
+  font-size: 15px; font-weight: 600; font-family: inherit; cursor: pointer; width: calc(100% - 40px); }
+.logout-btn:hover { background: rgba(229,77,77,.14); }
 
 /* login screen */
 .login-wrap { justify-content: center; padding: 28px 24px 32px; gap: 0; }

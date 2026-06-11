@@ -1184,10 +1184,10 @@ const s = StyleSheet.create({
 
   // Choose screen
   choosePad: { paddingHorizontal: 24, paddingTop: 20, paddingBottom: 16 },
-  logoutBtn: { marginHorizontal: 20, marginTop: 10, marginBottom: 20, padding: 14,
-    backgroundColor: 'transparent', borderRadius: 14, borderWidth: 1,
-    borderColor: 'rgba(0,0,0,.1)', alignItems: 'center' },
-  logoutTx: { fontSize: 15, color: 'rgba(0,0,0,.4)', fontWeight: '500' },
+  logoutBtn: { marginHorizontal: 20, marginTop: 10, marginBottom: 20, paddingVertical: 16, paddingHorizontal: 20,
+    backgroundColor: 'rgba(229,77,77,.06)', borderRadius: 14, borderWidth: 1,
+    borderColor: 'rgba(229,77,77,.22)', alignItems: 'center' },
+  logoutTx: { fontSize: 15, color: '#dc2626', fontWeight: '600' },
   chooseCard: { marginHorizontal: 20, flex: 1, backgroundColor: '#ffffff', borderRadius: 18,
     borderWidth: 1, borderColor: '#e5e7eb',
     shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 8, shadowOffset: { width: 0, height: 2 },
