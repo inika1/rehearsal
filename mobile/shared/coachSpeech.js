@@ -71,26 +71,22 @@ async function playMp3Base64(base64) {
   await stopCoachSpeech();
   await ensureAudioMode();
   const uri = `data:audio/mpeg;base64,${base64}`;
-  try {
-    const { sound } = await Audio.Sound.createAsync(
-      { uri },
-      { shouldPlay: true, volume: 1 },
-    );
-    activeSound = sound;
-    await new Promise((resolve) => {
-      const fallback = setTimeout(resolve, 30000);
-      sound.setOnPlaybackStatusUpdate((status) => {
-        if ((status.isLoaded && status.didJustFinish) || status.error) {
-          clearTimeout(fallback);
-          sound.unloadAsync().catch(() => {});
-          if (activeSound === sound) activeSound = null;
-          resolve();
-        }
-      });
+  const { sound } = await Audio.Sound.createAsync(
+    { uri },
+    { shouldPlay: true, volume: 1 },
+  );
+  activeSound = sound;
+  await new Promise((resolve) => {
+    const fallback = setTimeout(resolve, 30000);
+    sound.setOnPlaybackStatusUpdate((status) => {
+      if ((status.isLoaded && status.didJustFinish) || status.error) {
+        clearTimeout(fallback);
+        sound.unloadAsync().catch(() => {});
+        if (activeSound === sound) activeSound = null;
+        resolve();
+      }
     });
-  } catch {
-    /* fall through to system voice */
-  }
+  });
 }
 
 async function fetchNeuralSpeech(text) {
@@ -159,24 +155,36 @@ function speakWithSystemVoice(phrase) {
 
   return new Promise((resolve) => {
     const timeout = setTimeout(resolve, 20000);
-    pickNativeVoiceId().then((voice) => {
-      Speech.speak(phrase, {
-        language: 'en-GB',
-        voice: voice || undefined,
-        pitch: PITCH,
-        rate: RATE,
-        onDone: () => {
-          clearTimeout(timeout);
-          resolve();
-        },
-        onStopped: () => {
-          clearTimeout(timeout);
-          resolve();
-        },
-        onError: () => {
-          clearTimeout(timeout);
-          resolve();
-        },
+    // Release recording session so AVSpeechSynthesizer can use the audio output
+    Audio.setAudioModeAsync({
+      playsInSilentModeIOS: true,
+      allowsRecordingIOS: false,
+      interruptionModeIOS: 2,
+      shouldDuckAndroid: true,
+      playThroughEarpieceAndroid: false,
+    }).catch(() => {}).then(() => {
+      pickNativeVoiceId().then((voice) => {
+        Speech.speak(phrase, {
+          language: 'en-GB',
+          voice: voice || undefined,
+          pitch: PITCH,
+          rate: RATE,
+          onDone: () => {
+            clearTimeout(timeout);
+            ensureAudioMode().catch(() => {});
+            resolve();
+          },
+          onStopped: () => {
+            clearTimeout(timeout);
+            ensureAudioMode().catch(() => {});
+            resolve();
+          },
+          onError: () => {
+            clearTimeout(timeout);
+            ensureAudioMode().catch(() => {});
+            resolve();
+          },
+        });
       });
     });
   });
@@ -188,15 +196,23 @@ export async function speakCoachText(text, { audioBase64 } = {}) {
   if (!phrase) return;
 
   if (audioBase64) {
-    await playMp3Base64(audioBase64);
-    return;
+    try {
+      await playMp3Base64(audioBase64);
+      return;
+    } catch {
+      /* audio session conflict — fall through to system voice */
+    }
   }
 
   try {
     const base64 = await fetchNeuralSpeech(phrase);
     if (base64) {
-      await playMp3Base64(base64);
-      return;
+      try {
+        await playMp3Base64(base64);
+        return;
+      } catch {
+        /* fall through */
+      }
     }
   } catch {
     /* fall through */
