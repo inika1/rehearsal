@@ -27,7 +27,7 @@ import {
 // When testing on a physical device, change this to your machine's local IP.
 // e.g. 'http://192.168.1.42:4000'
 const API = 'https://rehearsal-production-5d15.up.railway.app';
-const SPEECH_SILENCE_MS = 3000;
+const SPEECH_SILENCE_MS = 1750;
 
 // Auth token — set once on login/startup, included in every request.
 let _token = null;
