@@ -48,9 +48,10 @@ body {
   box-shadow: 0 6px 22px rgba(62,196,106,.35); transition: transform .12s; }
 .callbtn:hover { transform: scale(1.05); }
 .calltext { text-align: center; font-size: 12px; color: rgba(255,255,255,.4); margin-bottom: 12px; }
-.prev { margin: auto 20px 26px; padding: 14px; text-align: center; font-size: 13px;
-  color: rgba(255,255,255,.55); background: rgba(255,255,255,.05); border-radius: 12px;
-  cursor: pointer; border: 1px solid rgba(255,255,255,.08); }
+.prev { margin: 16px 20px 26px; padding: 16px; text-align: center; font-size: 16px;
+  font-weight: 500; color: rgba(255,255,255,.6); background: rgba(255,255,255,.05); border-radius: 14px;
+  cursor: pointer; border: 1px solid rgba(255,255,255,.1); }
+.prev:hover { background: rgba(255,255,255,.08); }
 
 /* call */
 .call-wrap { flex: 1; display: flex; flex-direction: column; align-items: center;
