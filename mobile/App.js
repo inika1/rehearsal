@@ -1136,11 +1136,6 @@ function HistoryScreen({ history, person, onOpen, onBack, onDeleteConversation }
                 <Text style={s.htitle}>{c.title}</Text>
                 <Text style={s.hmeta}>{c.person_name} · {c.duration} · {c.created_at?.slice(0, 10)}</Text>
               </View>
-              <View style={[s.htension, { backgroundColor: assertiveColor(c.assertive ?? c.tension) + '22' }]}>
-                <Text style={[s.htensionTx, { color: assertiveColor(c.assertive ?? c.tension) }]}>
-                  {c.assertive ?? c.tension}%
-                </Text>
-              </View>
             </TouchableOpacity>
             <TouchableOpacity
               onPress={() => confirmDestructive(
