@@ -194,20 +194,20 @@ export async function analyse(person, situation, transcript) {
   const system =
     `You are a communication coach analysing a coaching session transcript (Gottman + assertiveness). ` +
     `The user prepared for: "${situation}" with ${person.name}. ` +
-    `Analyse ONLY what the user said (lines marked User). ` +
-    `Estimate how much of the user's communication was passive (avoids confrontation, accommodates others), ` +
-    `aggressive (forceful, win-focused), passive-aggressive (indirect hostility, sarcasm, avoidance), ` +
-    `and assertive (clear, respectful, balances own needs with listening); the four integers must sum to 100. ` +
-    `For style_notes, each style needs 1-2 instances: exact quotes plus a why in second person (you/your)—never write "the user". ` +
+    `Analyse ONLY what the user said (lines marked User). Score their communication style across four dimensions that MUST sum to 100. Be honest and discriminating — most real conversations are NOT mostly assertive. ` +
+    `PASSIVE (score high if): excessive apologising, heavy hedging ("sorry", "just", "I guess", "maybe", "no rush", "it's fine"), backing away from what they need, not stating wants clearly. Example: "Sorry I even brought it up, it's probably nothing." ` +
+    `AGGRESSIVE (score high if): blaming, absolutes ("you always", "you never"), ultimatums, dismissing the other person's perspective, threatening language. Example: "This is completely unacceptable and you need to fix it now." ` +
+    `PASSIVE-AGGRESSIVE (score high if): surface agreement with embedded resentment, sarcasm, veiled criticism, martyrdom, guilt-tripping. Example: "Fine, I'll just do it myself like I always do." ` +
+    `ASSERTIVE (score high if): clear I-statements ("I feel", "I need", "When X happens I feel Y"), naming specific impact, making concrete requests, acknowledging the other person's view while holding their own. Example: "When you leave dishes in the sink I feel overwhelmed. I need us to split this more evenly." ` +
+    `Give the dominant style at least 40. Do not default to passive — read the actual words carefully. ` +
+    `For style_notes, include 1-2 real instances per style (only for styles that genuinely appear); exact quotes plus a why in second person (you/your)—never write "the user". ` +
     `Detect if they showed any of these toward the other person: critical (attacking character), ` +
     `contemptuous (disrespect, sarcasm, disgust), defensive (deflecting blame, making excuses), ` +
     `stonewalling (shutting down, one-word answers, refusing to engage). ` +
     `For each detected pattern, quote their exact words, explain briefly in second person (you/your) why it fits, and suggest better phrasing. ` +
     `Always include did_well with 2-3 instances when possible (at least 1): quote exact words and why that moment was positive—always you/your, never "the user". ` +
     `If NONE of the four horsemen apply: set conversation_good true and all horsemen null. ` +
-    `If exactly ONE horseman clearly applies, return only that horseman (plus did_well is added separately). ` +
-    `If TWO or more horsemen apply, return each of them. ` +
-    `If ONE horseman applies but a second is borderline, include both horseman blocks. ` +
+    `If TWO OR MORE horsemen apply, return ALL of them — do not drop any. Each must include quote, why, and instead. ` +
     `If any horseman is present, conversation_good must be false. ` +
     `issue_title must be 4-6 words naming the core issue (not a full sentence). ` +
     `issue_summary must be one clear sentence in second person (you/your). Every why and instead field must also use you/your—never "the user", "user's", or "User". ` +

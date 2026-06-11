@@ -107,6 +107,7 @@ export default function App() {
   const [newName, setNewName] = useState('');
   const [newRel, setNewRel] = useState('');
   const [noInput, setNoInput] = useState(false);
+  const [insightsFromHistory, setInsightsFromHistory] = useState(false);
 
   // Restore session on startup
   useEffect(() => {
@@ -226,6 +227,7 @@ export default function App() {
     const full = await api.getConversation(id);
     setConversation(full);
     setMessages(full.messages);
+    setInsightsFromHistory(true);
     setScreen('insights');
   };
 
@@ -304,7 +306,8 @@ export default function App() {
       )}
       {screen === 'insights' && (
         <InsightsScreen conv={conversation} noInput={noInput}
-          onHome={() => { setNoInput(false); setScreen('choose'); }}
+          onHome={() => { setNoInput(false); setInsightsFromHistory(false); setScreen('choose'); }}
+          onBack={insightsFromHistory ? () => { setInsightsFromHistory(false); setScreen('history'); } : null}
           onTranscript={() => setScreen('transcript')}
           onDeleteConversation={deleteConv} />
       )}
@@ -948,7 +951,7 @@ const HORSEMAN_INTRO = {
   stonewalling: 'You sounded like you were shutting down instead of staying in the conversation:',
 };
 
-function InsightsScreen({ conv, noInput, onHome, onTranscript, onDeleteConversation }) {
+function InsightsScreen({ conv, noInput, onHome, onBack, onTranscript, onDeleteConversation }) {
   if (noInput) {
     return (
       <View style={s.scr}>
@@ -976,12 +979,19 @@ function InsightsScreen({ conv, noInput, onHome, onTranscript, onDeleteConversat
   const summary = displayIssueSummary(conv);
   const horsemen = horseman || [];
   const isGood = horsemen.length === 0;
-  const dominant = STYLE_METERS.reduce((a, m) => styles[m.key] > styles[a.key] ? m : a, STYLE_METERS[0]);
-  const dominantNotes = styleNotes?.[dominant.key]?.instances || [];
+  const sorted = [...STYLE_METERS].sort((a, b) => styles[b.key] - styles[a.key]);
+  const dominant = sorted[0];
+  const runner = sorted[1];
+  const showRunner = styles[runner.key] >= styles[dominant.key] - 10;
 
   return (
     <View style={s.scr}>
       <View style={s.topbar}>
+        {onBack && (
+          <TouchableOpacity onPress={onBack} style={s.backRow}>
+            <Text style={s.back}>‹ Back</Text>
+          </TouchableOpacity>
+        )}
         <TouchableOpacity onPress={onHome} style={s.iconbtn}>
           <Text style={{ color: 'rgba(0,0,0,.5)', fontSize: 20 }}>{'⌂'}</Text>
         </TouchableOpacity>
@@ -995,7 +1005,10 @@ function InsightsScreen({ conv, noInput, onHome, onTranscript, onDeleteConversat
       <ScrollView style={{ flex: 1 }}>
         {didWell && <DidWellSection block={didWell} />}
         {horsemen.map((b, i) => <WatchOutSection key={i} block={b} />)}
-        <StyleNoteSection meter={dominant} value={styles[dominant.key]} instances={dominantNotes} />
+        <StyleNoteSection meter={dominant} value={styles[dominant.key]} instances={styleNotes?.[dominant.key]?.instances || []} />
+        {showRunner && (
+          <StyleNoteSection meter={runner} value={styles[runner.key]} instances={styleNotes?.[runner.key]?.instances || []} />
+        )}
         <TouchableOpacity
           onPress={() => confirmDestructive(
             'Delete conversation',
@@ -1292,7 +1305,7 @@ const s = StyleSheet.create({
   hint: { fontSize: 11, color: 'rgba(0,0,0,.3)', marginTop: 10 },
 
   // Insights
-  topbar: { flexDirection: 'row', justifyContent: 'flex-end', paddingHorizontal: 20, paddingTop: 12, paddingBottom: 6 },
+  topbar: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, paddingTop: 12, paddingBottom: 6 },
   iconbtn: { width: 48, height: 48, borderRadius: 14, backgroundColor: 'rgba(0,0,0,.05)',
     borderWidth: 1, borderColor: 'rgba(0,0,0,.08)', alignItems: 'center', justifyContent: 'center' },
   convTtl: { fontSize: 21, fontWeight: '600', color: '#111827', paddingHorizontal: 24, paddingTop: 16, paddingBottom: 6 },
