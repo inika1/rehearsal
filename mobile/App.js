@@ -1046,11 +1046,20 @@ function WatchOutSection({ block }) {
   );
 }
 
+function styleQualifier(value) {
+  if (value >= 70) return 'very';
+  if (value >= 45) return 'quite';
+  return 'a little';
+}
+
 function StyleNoteSection({ meter, value, instances = [] }) {
+  const qualifier = styleQualifier(value);
   return (
     <View style={s.insSection}>
       <Text style={s.insSectionLbl}>How you came across</Text>
-      <Text style={[s.insStyleName, { color: meter.color }]}>{meter.label} ({value}%)</Text>
+      <Text style={[s.insStyleName, { color: meter.color }]}>
+        {`You came across as ${qualifier} ${meter.label.toLowerCase()}`}
+      </Text>
       <Text style={s.insNote}>{meter.description}</Text>
       {instances.map((inst, i) => (
         <View key={i} style={i > 0 ? s.insMoment : undefined}>
