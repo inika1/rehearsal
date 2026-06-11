@@ -176,3 +176,27 @@ body {
 .cta:hover { opacity: .92; }
 .cta.ghost { background: transparent; color: rgba(255,255,255,.4); border: 1px solid rgba(255,255,255,.12);
   font-weight: 400; margin-top: 0; }
+
+/* Desktop: bigger phone frame + larger text */
+@media (min-width: 601px) {
+  .phone { width: 460px; height: 860px; }
+  .ttl { font-size: 30px; }
+  .sub { font-size: 16px; }
+}
+
+/* Mobile browser: full screen, no phone chrome */
+@media (max-width: 600px) {
+  body { background: #0e0e1a; justify-content: flex-start; }
+  .stage { padding: 0; width: 100%; min-height: 100dvh; display: flex; }
+  .phone { width: 100%; height: 100dvh; border-radius: 0; padding: 0; border: none; box-shadow: none; }
+  .phone-in { border-radius: 0; }
+  .ttl { font-size: 21px; }
+  .sub { font-size: 13px; }
+  /* tighten call screen so hang up button doesn't overlap */
+  .call-wrap { justify-content: flex-start; padding-top: 16px; overflow-y: auto; }
+  .call-avatar { width: 68px; height: 68px; font-size: 24px; margin: 10px 0; }
+  .wave { margin-bottom: 8px; }
+  .mini-transcript { min-height: 60px; margin-bottom: 8px; }
+  .call-input { margin-bottom: 10px; }
+  .pausebtn { margin-bottom: 8px; padding: 8px 18px; }
+}
