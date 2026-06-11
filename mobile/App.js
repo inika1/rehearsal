@@ -233,7 +233,7 @@ export default function App() {
     return (
       <SafeAreaView style={s.root}>
         <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
-          <Text style={{ fontSize: 28, fontWeight: '700', color: '#111827', marginBottom: 8 }}>Rehearsal</Text>
+          <Text style={{ fontSize: 28, fontWeight: '700', color: '#111827', marginBottom: 8 }}>Bridge</Text>
           <Text style={{ color: 'rgba(0,0,0,.35)', fontSize: 14 }}>Loading…</Text>
         </View>
       </SafeAreaView>
