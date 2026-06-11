@@ -232,7 +232,7 @@ function LoginScreen({ onAuth }) {
 function ChooseScreen({ people, onPick, onAdd, onLogout }) {
   return (
     <div className="scr">
-      <div className="hd"><div className="ttl">Who do you need help talking to?</div><div className="sub">Pick someone you're having a hard time with</div></div>
+      <div className="hd"><div className="ttl">Who do you need help talking to?</div><div className="sub">Pick someone you need to have a difficult conversation with</div></div>
       <div className="people">
         {people.slice(0, 3).map((p, i) => (
           <div className="person" key={p.id} onClick={() => onPick(p)}>

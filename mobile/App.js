@@ -471,7 +471,7 @@ function ChooseScreen({ people, onPick, onAdd, userEmail, onLogout }) {
     <View style={s.scr}>
       <View style={s.choosePad}>
         <Text style={s.ttl}>Who do you need help talking to?</Text>
-        <Text style={s.sub}>Pick someone you're having a hard time with</Text>
+        <Text style={s.sub}>Pick someone you need to have a difficult conversation with</Text>
       </View>
 
       <View style={s.chooseCard}>
