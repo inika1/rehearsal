@@ -18,8 +18,8 @@ body {
 
 .scr { display: flex; flex-direction: column; flex: 1; overflow: hidden; }
 .hd { padding: 8px 24px 6px; }
-.ttl { font-size: 23px; font-weight: 600; color: #f0e6d3; line-height: 1.15; }
-.sub { font-size: 13px; color: rgba(255,255,255,.45); margin-top: 4px; }
+.ttl { font-size: 26px; font-weight: 600; color: #f0e6d3; line-height: 1.15; }
+.sub { font-size: 15px; color: rgba(255,255,255,.45); margin-top: 4px; }
 .back { color: #c4a96e; font-size: 16px; font-weight: 600; cursor: pointer; margin-bottom: 8px;
   display: inline-flex; align-items: center; min-height: 44px; padding: 4px 0; }
 .label { font-size: 11px; text-transform: uppercase; letter-spacing: .06em;
@@ -40,7 +40,7 @@ body {
 /* describe */
 .ta { margin: 6px 24px; background: rgba(255,255,255,.05); border: 1px solid rgba(255,255,255,.1);
   border-radius: 16px; padding: 14px 16px; min-height: 130px; resize: none; color: #f0e6d3;
-  font-size: 14px; line-height: 1.55; font-family: inherit; outline: none; }
+  font-size: 15px; line-height: 1.55; font-family: inherit; outline: none; }
 .ta::placeholder { color: rgba(255,255,255,.3); }
 .reltag { margin: 12px 24px 0; font-size: 12px; color: rgba(255,255,255,.4); }
 .callbtn { width: 80px; height: 80px; border-radius: 50%; background: #3ec46a; display: flex;

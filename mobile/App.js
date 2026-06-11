@@ -472,7 +472,7 @@ function ChooseScreen({ people, onPick, onAdd, userEmail, onLogout }) {
       <View style={s.choosePad}>
         <View style={s.chooseHeader}>
           <View>
-            <Text style={s.ttl}>Who do you need to talk to?</Text>
+            <Text style={s.ttl}>Who do you need help talking to?</Text>
             <Text style={s.sub}>Pick someone you're having a hard time with</Text>
           </View>
           <TouchableOpacity onPress={() => Alert.alert(
@@ -1162,8 +1162,7 @@ const s = StyleSheet.create({
   ttl: { fontSize: 24, fontWeight: '700', color: '#111827', lineHeight: 30 },
   sub: { fontSize: 13, color: 'rgba(0,0,0,.4)', marginTop: 4 },
   back: { color: '#1e3a8a', fontSize: 16, fontWeight: '600' },
-  backRow: { paddingHorizontal: 20, paddingTop: 10, paddingBottom: 6, minHeight: 48, justifyContent: 'center',
-    ...Platform.select({ web: { maxWidth: 520, alignSelf: 'center', width: '100%' } }) },
+  backRow: { paddingHorizontal: 20, paddingTop: 10, paddingBottom: 6, minHeight: 48, justifyContent: 'center' },
   label: { fontSize: 11, color: 'rgba(0,0,0,.3)', paddingHorizontal: 24, marginTop: 16, marginBottom: 10, letterSpacing: 0.8 },
 
   // Login screen
@@ -1215,7 +1214,7 @@ const s = StyleSheet.create({
   describeCard: { marginHorizontal: 20, marginTop: 8, backgroundColor: '#ffffff',
     borderRadius: 20, borderWidth: 1, borderColor: '#e5e7eb',
     shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 8, shadowOffset: { width: 0, height: 2 },
-    padding: 20, flex: 1, ...Platform.select({ web: { maxWidth: 480, alignSelf: 'center', width: '100%' } }) },
+    padding: 20, flex: 1 },
   describeAvatar: { width: 72, height: 72, borderRadius: 36, backgroundColor: '#dbeafe',
     alignItems: 'center', justifyContent: 'center', alignSelf: 'center', marginBottom: 10 },
   describeAvatarTx: { fontSize: 28, fontWeight: '700', color: '#1e3a8a' },

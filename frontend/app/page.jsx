@@ -110,7 +110,7 @@ export default function App() {
 function ChooseScreen({ people, onPick, onAdd }) {
   return (
     <div className="scr">
-      <div className="hd"><div className="ttl">Who do you need to talk to?</div><div className="sub">Pick someone you're having a hard time with</div></div>
+      <div className="hd"><div className="ttl">Who do you need help talking to?</div><div className="sub">Pick someone you're having a hard time with</div></div>
       <div className="people">
         {people.slice(0, 3).map((p, i) => (
           <div className="person" key={p.id} onClick={() => onPick(p)}>
@@ -129,7 +129,7 @@ function DescribeScreen({ person, situation, setSituation, onStart, onBack, onHi
     <div className="scr">
       <div className="hd">
         <div className="back" onClick={onBack}>‹ Back</div>
-        <div className="ttl">{person.name}</div><div className="sub">Tell us about it…</div>
+        <div className="ttl">{person.name}</div><div className="sub">Tell your coach what's going on</div>
       </div>
       <textarea className="ta" placeholder="What happened? What do you want to say?"
         value={situation} onChange={(e) => setSituation(e.target.value)} />
