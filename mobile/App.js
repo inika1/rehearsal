@@ -469,8 +469,8 @@ function ChooseScreen({ people, onPick, onAdd, userEmail, onLogout }) {
       <View style={s.choosePad}>
         <View style={s.chooseHeader}>
           <View>
-            <Text style={s.ttl}>Choose someone</Text>
-            <Text style={s.sub}>Who do you need to talk to?</Text>
+            <Text style={s.ttl}>Who do you need to talk to?</Text>
+            <Text style={s.sub}>Pick someone you're having a hard time with</Text>
           </View>
           <TouchableOpacity onPress={() => Alert.alert(
             'Sign out',
