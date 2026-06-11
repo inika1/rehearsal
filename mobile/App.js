@@ -2,7 +2,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { ExpoSpeechRecognitionModule, useSpeechRecognitionEvent } from 'expo-speech-recognition';
 import Svg, { Circle, Line, Path, Rect } from 'react-native-svg';
 import { StatusBar } from 'expo-status-bar';
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   Alert,
   Animated, Easing,
@@ -20,6 +20,7 @@ import {
   assertiveColor, displayHeadline, displayIssueSummary,
   resolveInsights, STYLE_METERS,
 } from './shared/insightsView.js';
+import { useStudy } from './study/StudyContext.js';
 
 // When testing on a physical device, change this to your machine's local IP.
 // e.g. 'http://192.168.1.42:4000'
@@ -79,6 +80,15 @@ const AVATAR_COLORS = ['#c4a96e', '#b8a0d4', '#9b8cf0', '#e8a23d', '#3ec46a'];
 const colorFor = (i) => AVATAR_COLORS[i % AVATAR_COLORS.length];
 const tColor = (t) => (t >= 65 ? '#e54d4d' : t >= 45 ? '#e8a23d' : '#3ec46a');
 
+function withTimeout(promise, ms, label = 'operation') {
+  return Promise.race([
+    promise,
+    new Promise((_, reject) => {
+      setTimeout(() => reject(new Error(`${label} timed out`)), ms);
+    }),
+  ]);
+}
+
 function confirmDestructive(title, message, actionText, onConfirm) {
   if (Platform.OS === 'web' && typeof window !== 'undefined') {
     if (window.confirm(`${title}\n\n${message}`)) onConfirm();
@@ -90,7 +100,8 @@ function confirmDestructive(title, message, actionText, onConfirm) {
   ]);
 }
 
-export default function App() {
+export function BridgeApp() {
+  const study = useStudy();
   const [authReady, setAuthReady] = useState(false);
   const [user, setUser] = useState(null);
   const [screen, setScreen] = useState('choose');
@@ -105,25 +116,65 @@ export default function App() {
   const [newRel, setNewRel] = useState('');
   const [noInput, setNoInput] = useState(false);
 
+  const resetToHome = useCallback(() => {
+    setPerson(null);
+    setSituation('');
+    setConversation(null);
+    setMessages([]);
+    setNoInput(false);
+    setAddingPerson(false);
+    setNewName('');
+    setNewRel('');
+    setScreen('choose');
+  }, []);
+
+  useEffect(() => {
+    study?.registerResetApp(resetToHome);
+  }, [study?.registerResetApp, resetToHome]);
+
   // Restore session on startup
   useEffect(() => {
+    let alive = true;
     configureCoachSpeech(API);
-    AsyncStorage.getItem('auth_token').then(async (token) => {
-      if (token) {
-        api.setToken(token);
-        const data = await api.getPeople().catch(() => null);
-        if (Array.isArray(data)) {
-          setPeople(data);
-          const stored = await AsyncStorage.getItem('auth_user').catch(() => null);
-          setUser(stored ? JSON.parse(stored) : { token });
-        } else {
-          // Token invalid — clear and show login
-          await AsyncStorage.multiRemove(['auth_token', 'auth_user']);
-          api.setToken(null);
+
+    (async () => {
+      try {
+        const token = await withTimeout(
+          AsyncStorage.getItem('auth_token'),
+          5000,
+          'Auth storage read',
+        ).catch(() => null);
+        if (token) {
+          api.setToken(token);
+          const data = await withTimeout(api.getPeople(), 8000, 'Auth restore').catch(() => null);
+
+          if (!alive) return;
+
+          if (Array.isArray(data)) {
+            setPeople(data);
+            const stored = await AsyncStorage.getItem('auth_user').catch(() => null);
+            if (stored) {
+              try {
+                setUser(JSON.parse(stored));
+              } catch {
+                setUser({ token });
+              }
+            } else {
+              setUser({ token });
+            }
+          } else {
+            await AsyncStorage.multiRemove(['auth_token', 'auth_user']).catch(() => {});
+            api.setToken(null);
+          }
         }
+      } catch (err) {
+        console.warn('Auth restore failed', err);
+      } finally {
+        if (alive) setAuthReady(true);
       }
-      setAuthReady(true);
-    });
+    })();
+
+    return () => { alive = false; };
   }, []);
 
   const handleAuth = async (token, userObj) => {
@@ -146,11 +197,18 @@ export default function App() {
     setScreen('choose');
   };
 
-  const pickPerson = (p) => { setPerson(p); setSituation(''); setScreen('describe'); };
+  const pickPerson = (p) => {
+    study?.trackClick('pick_person');
+    setPerson(p);
+    setSituation('');
+    setScreen('describe');
+  };
 
   const addPerson = async () => {
     if (!newName.trim()) return;
+    study?.trackClick('add_person_confirm');
     const p = await api.addPerson(newName.trim(), newRel.trim());
+    study?.trackEvent('person_added', { name: p.name });
     setPeople([p, ...people]);
     setNewName('');
     setNewRel('');
@@ -158,6 +216,7 @@ export default function App() {
   };
 
   const startCall = async () => {
+    study?.trackClick('start_call');
     const title = situation.split(' ').slice(0, 3).join(' ') || 'Untitled';
     const conv = await api.startConversation(person.id, title, situation);
     const fullConv = await api.getConversation(conv.id);
@@ -167,6 +226,7 @@ export default function App() {
   };
 
   const endCall = async (duration, hasInput) => {
+    study?.trackClick('end_call');
     if (!hasInput) {
       await api.deleteConversation(conversation.id).catch((err) => {
         console.warn('Failed to delete empty conversation', err.message);
@@ -179,13 +239,23 @@ export default function App() {
     setNoInput(false);
     const updated = await api.finish(conversation.id, duration);
     setConversation(updated);
+    study?.trackEvent('call_ended', { personName: person?.name });
     setScreen('insights');
+    study?.trackEvent('insights_viewed', {
+      personName: person?.name,
+      fromHistory: false,
+    });
   };
 
   const deleteConv = async () => {
     if (!conversation) return;
+    study?.trackClick('delete_conversation');
     try {
       await api.deleteConversation(conversation.id);
+      study?.trackEvent('conversation_deleted', {
+        personName: conversation.person_name || person?.name,
+        source: 'insights',
+      });
       setConversation(null);
       setScreen('choose');
     } catch (err) {
@@ -195,6 +265,7 @@ export default function App() {
 
   const deleteContact = async () => {
     if (!person) return;
+    study?.trackClick('delete_contact');
     try {
       await api.deletePerson(person.id);
       setPeople((ps) => ps.filter((p) => p.id !== person.id));
@@ -206,8 +277,14 @@ export default function App() {
   };
 
   const deleteHistoryConv = async (id) => {
+    study?.trackClick('delete_history_conversation');
+    const item = history.find((c) => c.id === id);
     try {
       await api.deleteConversation(id);
+      study?.trackEvent('conversation_deleted', {
+        personName: item?.person_name || person?.name,
+        source: 'history',
+      });
       setHistory((h) => h.filter((c) => c.id !== id));
     } catch (err) {
       Alert.alert('Could not delete conversation', err.message);
@@ -215,15 +292,60 @@ export default function App() {
   };
 
   const openHistory = async () => {
+    study?.trackClick('open_history');
     setHistory(await api.history(person?.id));
     setScreen('history');
   };
 
   const openConversation = async (id) => {
+    study?.trackClick('open_past_conversation');
     const full = await api.getConversation(id);
     setConversation(full);
     setMessages(full.messages);
     setScreen('insights');
+    study?.trackEvent('insights_viewed', {
+      personName: full.person_name || person?.name,
+      fromHistory: true,
+    });
+  };
+
+  const goHome = () => {
+    study?.trackClick('go_home', { backtrack: true });
+    setNoInput(false);
+    setScreen('choose');
+  };
+
+  const goBackToChoose = () => {
+    study?.trackClick('back_to_choose', { backtrack: true });
+    setScreen('choose');
+  };
+
+  const goBackToDescribe = () => {
+    study?.trackClick('back_to_describe', { backtrack: true });
+    setSituation('');
+    setScreen('describe');
+  };
+
+  const goToTranscript = () => {
+    study?.trackClick('open_transcript');
+    setScreen('transcript');
+  };
+
+  const goBackToInsights = () => {
+    study?.trackClick('back_to_insights', { backtrack: true });
+    setScreen('insights');
+  };
+
+  const openAddPerson = () => {
+    study?.trackClick('open_add_person');
+    setAddingPerson(true);
+  };
+
+  const cancelAddPerson = () => {
+    study?.trackClick('cancel_add_person', { backtrack: true });
+    setAddingPerson(false);
+    setNewName('');
+    setNewRel('');
   };
 
   if (!authReady) {
@@ -273,7 +395,7 @@ export default function App() {
             />
             <View style={s.modalActions}>
               <TouchableOpacity
-                onPress={() => { setAddingPerson(false); setNewName(''); setNewRel(''); }}
+                onPress={cancelAddPerson}
                 style={s.modalCancel}
               >
                 <Text style={s.modalCancelTx}>Cancel</Text>
@@ -287,31 +409,32 @@ export default function App() {
       </Modal>
 
       {screen === 'choose' && (
-        <ChooseScreen people={people} onPick={pickPerson} onAdd={() => setAddingPerson(true)}
+        <ChooseScreen people={people} onPick={pickPerson} onAdd={openAddPerson}
           userEmail={user?.email} onLogout={handleLogout} />
       )}
       {screen === 'describe' && (
         <DescribeScreen person={person} situation={situation} setSituation={setSituation}
-          onStart={startCall} onBack={() => setScreen('choose')} onHistory={openHistory}
+          onStart={startCall} onBack={goBackToChoose} onHistory={openHistory}
           onDeletePerson={deleteContact} />
       )}
       {screen === 'call' && (
         <CallScreen person={person} conversation={conversation}
-          messages={messages} setMessages={setMessages} onEnd={endCall} />
+          messages={messages} setMessages={setMessages} onEnd={endCall}
+          onPause={() => study?.trackEvent('pause_used')} />
       )}
       {screen === 'insights' && (
         <InsightsScreen conv={conversation} noInput={noInput}
-          onHome={() => { setNoInput(false); setScreen('choose'); }}
-          onTranscript={() => setScreen('transcript')}
+          onHome={goHome}
+          onTranscript={goToTranscript}
           onDeleteConversation={deleteConv} />
       )}
       {screen === 'transcript' && (
         <TranscriptScreen conv={conversation} messages={messages}
-          onBack={() => setScreen('insights')} onNew={() => setScreen('choose')} />
+          onBack={goBackToInsights} onNew={goHome} />
       )}
       {screen === 'history' && (
         <HistoryScreen history={history} person={person}
-          onOpen={openConversation} onBack={() => { setSituation(''); setScreen('describe'); }}
+          onOpen={openConversation} onBack={goBackToDescribe}
           onDeleteConversation={deleteHistoryConv} />
       )}
     </SafeAreaView>
@@ -590,7 +713,7 @@ function WaveBar({ delay }) {
   return <Animated.View style={[s.waveBar, { height: anim }]} />;
 }
 
-function CallScreen({ person, conversation, messages, setMessages, onEnd }) {
+function CallScreen({ person, conversation, messages, setMessages, onEnd, onPause }) {
   const [secs, setSecs] = useState(0);
   const [input, setInput] = useState('');
   const [busy, setBusy] = useState(false);
@@ -668,6 +791,7 @@ function CallScreen({ person, conversation, messages, setMessages, onEnd }) {
 
   const pauseCall = () => {
     if (pausedRef.current || !activeRef.current) return;
+    onPause?.();
     pausedRef.current = true;
     setPaused(true);
     clearTimeout(silenceTimer.current);
@@ -1410,3 +1534,5 @@ const s = StyleSheet.create({
   modalConfirm: { flex: 1, padding: 12, borderRadius: 12, backgroundColor: '#dbeafe', alignItems: 'center' },
   modalConfirmTx: { color: '#1e3a8a', fontSize: 14, fontWeight: '600' },
 });
+
+export default BridgeApp;

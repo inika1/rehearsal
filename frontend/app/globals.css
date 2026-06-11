@@ -143,6 +143,10 @@ body {
 .did-well-item { margin-top: 12px; padding-top: 12px; border-top: 1px solid rgba(255,255,255,.08); }
 .viewtx { margin: 8px 24px 18px; padding: 13px; text-align: center; font-size: 13px; color: #c4a96e;
   background: rgba(196,169,110,.1); border: 1px solid rgba(196,169,110,.25); border-radius: 12px; cursor: pointer; }
+.delete-conv { display: block; width: calc(100% - 48px); margin: 12px 24px 0; padding: 12px;
+  background: rgba(229,77,77,.08); border: 1px solid rgba(229,77,77,.25); border-radius: 12px;
+  color: #dc2626; font-size: 13px; font-weight: 500; cursor: pointer; font-family: inherit; }
+.delete-conv:hover { background: rgba(229,77,77,.14); }
 
 /* transcript */
 .tx-scroll { flex: 1; overflow-y: auto; padding: 8px 20px 14px; display: flex; flex-direction: column; gap: 10px; }
