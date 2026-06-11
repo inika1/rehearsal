@@ -28,7 +28,7 @@ import { useStudy } from './study/StudyContext.js';
 // When testing on a physical device, change this to your machine's local IP.
 // e.g. 'http://192.168.1.42:4000'
 const API = 'https://rehearsal-production-5d15.up.railway.app';
-const SPEECH_SILENCE_MS = 3000;
+const SPEECH_SILENCE_MS = 1750;
 
 // Auth token — set once on login/startup, included in every request.
 let _token = null;
@@ -642,26 +642,37 @@ function DescribeScreen({ person, situation, setSituation, onStart, onBack, onHi
         <Text style={s.back}>‹ Back</Text>
       </TouchableOpacity>
 
-      <View style={s.describeCard}>
-        <View style={s.describeAvatar}>
-          <Text style={s.describeAvatarTx}>{person.name[0]}</Text>
-        </View>
-        <Text style={s.describeName}>{person.name}</Text>
-        {person.relationship ? (
-          <Text style={s.describeRel}>{person.relationship}</Text>
-        ) : null}
+      <ScrollView contentContainerStyle={{ paddingBottom: 32 }} keyboardShouldPersistTaps="handled">
+        <View style={s.describeCard}>
+          <View style={s.describeAvatar}>
+            <Text style={s.describeAvatarTx}>{person.name[0]}</Text>
+          </View>
+          <Text style={s.describeName}>{person.name}</Text>
+          {person.relationship ? (
+            <Text style={s.describeRel}>{person.relationship}</Text>
+          ) : null}
 
-        <View style={s.describeSection}>
-          <Text style={s.describeSectionLabel}>What happened?</Text>
-          <TextInput
-            style={s.ta}
-            placeholder="Is there any further context you want to provide about the conversation? (optional)"
-            placeholderTextColor="rgba(0,0,0,.3)"
-            value={situation}
-            onChangeText={setSituation}
-            multiline
-            textAlignVertical="top"
-          />
+          <View style={s.describeSection}>
+            <Text style={s.describeSectionLabel}>What happened? (optional)</Text>
+            <TextInput
+              style={s.ta}
+              placeholder="Any context about the conversation?"
+              placeholderTextColor="rgba(0,0,0,.3)"
+              value={situation}
+              onChangeText={setSituation}
+              multiline
+              textAlignVertical="top"
+            />
+          </View>
+
+          <View style={s.callbtnHalo}>
+            <View style={s.callbtnRing}>
+              <TouchableOpacity onPress={onStart} style={s.callbtn}>
+                <Text style={{ fontSize: 28 }}>📞</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+          <Text style={s.calltext}>Tap to start your coaching session</Text>
         </View>
 
         <TouchableOpacity onPress={onHistory} style={s.prev}>
@@ -678,16 +689,7 @@ function DescribeScreen({ person, situation, setSituation, onStart, onBack, onHi
         >
           <Text style={s.deleteContactTx}>Delete contact</Text>
         </TouchableOpacity>
-      </View>
-
-      <View style={s.callbtnHalo}>
-        <View style={s.callbtnRing}>
-          <TouchableOpacity onPress={onStart} style={s.callbtn}>
-            <Text style={{ fontSize: 28 }}>📞</Text>
-          </TouchableOpacity>
-        </View>
-      </View>
-      <Text style={s.calltext}>Tap to start your coaching session</Text>
+      </ScrollView>
     </KeyboardAvoidingView>
   );
 }
@@ -1047,7 +1049,7 @@ function CallScreen({ person, conversation, messages, setMessages, onEnd, onPaus
         style={[s.pauseBtn, paused && s.pauseBtnActive]}
       >
         <Text style={[s.pauseBtnTx, paused && s.pauseBtnTxActive]}>
-          {paused ? '▶  Resume' : '⏸  Pause'}
+          {paused ? '▶  Resume' : '⏸  Hold'}
         </Text>
       </TouchableOpacity>
       <TouchableOpacity onPress={() => {
@@ -1329,10 +1331,11 @@ const s = StyleSheet.create({
   addnewTx: { color: 'rgba(0,0,0,.5)', fontSize: 15, fontWeight: '500' },
 
   // Describe screen
+  describeHeader: { alignItems: 'center', paddingTop: 8, paddingBottom: 12 },
   describeCard: { marginHorizontal: 20, marginTop: 8, backgroundColor: '#ffffff',
     borderRadius: 20, borderWidth: 1, borderColor: '#e5e7eb',
     shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 8, shadowOffset: { width: 0, height: 2 },
-    padding: 20, flex: 1 },
+    padding: 20 },
   describeAvatar: { width: 72, height: 72, borderRadius: 36, backgroundColor: '#dbeafe',
     alignItems: 'center', justifyContent: 'center', alignSelf: 'center', marginBottom: 10 },
   describeAvatarTx: { fontSize: 28, fontWeight: '700', color: '#1e3a8a' },
@@ -1343,9 +1346,9 @@ const s = StyleSheet.create({
     letterSpacing: 0.7, color: 'rgba(0,0,0,.35)', marginBottom: 8 },
   ta: { backgroundColor: '#f9fafb', borderWidth: 1, borderColor: '#e5e7eb',
     borderRadius: 14, padding: 14, minHeight: 120, color: '#111827', fontSize: 14, lineHeight: 22 },
-  prev: { marginTop: 16, padding: 16, backgroundColor: '#f9fafb', borderRadius: 14,
-    borderWidth: 1, borderColor: '#e5e7eb' },
-  prevTx: { color: 'rgba(0,0,0,.5)', fontSize: 16, fontWeight: '500', textAlign: 'center' },
+  prev: { marginHorizontal: 20, marginTop: 20, padding: 16, backgroundColor: '#dbeafe', borderRadius: 14,
+    borderWidth: 1, borderColor: '#bfdbfe' },
+  prevTx: { color: '#1e3a8a', fontSize: 16, fontWeight: '500', textAlign: 'center' },
   callbtnHalo: { alignSelf: 'center', marginTop: 20, marginBottom: 8, width: 116, height: 116,
     borderRadius: 58, backgroundColor: 'rgba(62,196,106,.07)', alignItems: 'center', justifyContent: 'center' },
   callbtnRing: { width: 96, height: 96, borderRadius: 48, backgroundColor: 'rgba(62,196,106,.13)',
@@ -1505,7 +1508,7 @@ const s = StyleSheet.create({
   empty: { color: 'rgba(0,0,0,.4)', fontSize: 13, textAlign: 'center', paddingTop: 30, paddingHorizontal: 10 },
 
   // Delete buttons
-  deleteContact: { marginTop: 10, paddingVertical: 16, paddingHorizontal: 20,
+  deleteContact: { marginHorizontal: 20, marginTop: 10, paddingVertical: 16, paddingHorizontal: 20,
     backgroundColor: 'rgba(229,77,77,.06)',
     borderRadius: 14, borderWidth: 1, borderColor: 'rgba(229,77,77,.22)', alignItems: 'center' },
   deleteContactTx: { color: '#dc2626', fontSize: 15, fontWeight: '600' },
