@@ -925,7 +925,7 @@ function CallScreen({ person, conversation, messages, setMessages, onEnd }) {
         style={[s.pauseBtn, paused && s.pauseBtnActive]}
       >
         <Text style={[s.pauseBtnTx, paused && s.pauseBtnTxActive]}>
-          {paused ? '▶  Resume' : '⏸  Pause'}
+          {paused ? '▶  Resume' : '⏸  Hold'}
         </Text>
       </TouchableOpacity>
       <TouchableOpacity onPress={() => {
