@@ -6,6 +6,7 @@ import { useEffect, useRef, useState } from 'react';
 import {
   Alert,
   Animated, Easing,
+  Dimensions,
   KeyboardAvoidingView,
   Modal,
   Platform,
@@ -15,6 +16,8 @@ import {
   Text, TextInput, TouchableOpacity,
   View,
 } from 'react-native';
+
+const { width: SW } = Dimensions.get('window');
 import { configureCoachSpeech, speakCoachText, stopCoachSpeech } from './shared/coachSpeech.js';
 import {
   assertiveColor, displayHeadline, displayIssueSummary,
@@ -1158,8 +1161,8 @@ const s = StyleSheet.create({
   hd: { paddingHorizontal: 24, paddingTop: 16, paddingBottom: 8 },
   ttl: { fontSize: 24, fontWeight: '700', color: '#111827', lineHeight: 30 },
   sub: { fontSize: 13, color: 'rgba(0,0,0,.4)', marginTop: 4 },
-  back: { color: '#1e3a8a', fontSize: 14, fontWeight: '500' },
-  backRow: { paddingHorizontal: 24, paddingTop: 12, paddingBottom: 4 },
+  back: { color: '#1e3a8a', fontSize: 16, fontWeight: '600' },
+  backRow: { paddingHorizontal: 20, paddingTop: 10, paddingBottom: 6, minHeight: 48, justifyContent: 'center' },
   label: { fontSize: 11, color: 'rgba(0,0,0,.3)', paddingHorizontal: 24, marginTop: 16, marginBottom: 10, letterSpacing: 0.8 },
 
   // Login screen
@@ -1187,10 +1190,10 @@ const s = StyleSheet.create({
   // Choose screen
   choosePad: { paddingHorizontal: 24, paddingTop: 20, paddingBottom: 16 },
   chooseHeader: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between' },
-  logoutBtn: { width: 36, height: 36, borderRadius: 10, backgroundColor: 'rgba(0,0,0,.05)',
+  logoutBtn: { width: 44, height: 44, borderRadius: 12, backgroundColor: 'rgba(0,0,0,.05)',
     borderWidth: 1, borderColor: 'rgba(0,0,0,.08)', alignItems: 'center', justifyContent: 'center',
     marginTop: 2 },
-  logoutTx: { fontSize: 16, color: 'rgba(0,0,0,.4)' },
+  logoutTx: { fontSize: 18, color: 'rgba(0,0,0,.4)' },
   chooseCard: { marginHorizontal: 20, flex: 1, backgroundColor: '#ffffff', borderRadius: 18,
     borderWidth: 1, borderColor: '#e5e7eb',
     shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 8, shadowOffset: { width: 0, height: 2 },
@@ -1288,8 +1291,8 @@ const s = StyleSheet.create({
   hint: { fontSize: 11, color: 'rgba(0,0,0,.3)', marginTop: 10 },
 
   // Insights
-  topbar: { flexDirection: 'row', justifyContent: 'center', paddingHorizontal: 24, paddingTop: 12, paddingBottom: 6 },
-  iconbtn: { width: 46, height: 46, borderRadius: 13, backgroundColor: 'rgba(0,0,0,.05)',
+  topbar: { flexDirection: 'row', justifyContent: 'flex-end', paddingHorizontal: 20, paddingTop: 12, paddingBottom: 6 },
+  iconbtn: { width: 48, height: 48, borderRadius: 14, backgroundColor: 'rgba(0,0,0,.05)',
     borderWidth: 1, borderColor: 'rgba(0,0,0,.08)', alignItems: 'center', justifyContent: 'center' },
   convTtl: { fontSize: 21, fontWeight: '600', color: '#111827', paddingHorizontal: 24, paddingTop: 16, paddingBottom: 6 },
   convSummary: { fontSize: 13, lineHeight: 19, color: 'rgba(0,0,0,.5)', paddingHorizontal: 24, paddingBottom: 10 },
@@ -1384,16 +1387,18 @@ const s = StyleSheet.create({
   empty: { color: 'rgba(0,0,0,.4)', fontSize: 13, textAlign: 'center', paddingTop: 30, paddingHorizontal: 10 },
 
   // Delete buttons
-  deleteContact: { marginTop: 10, padding: 14, backgroundColor: 'rgba(229,77,77,.06)',
-    borderRadius: 12, borderWidth: 1, borderColor: 'rgba(229,77,77,.22)', alignItems: 'center' },
-  deleteContactTx: { color: '#dc2626', fontSize: 13, fontWeight: '500' },
-  deleteConvBtn: { marginHorizontal: 24, marginTop: 20, marginBottom: 4, padding: 13,
-    borderRadius: 12, borderWidth: 1, borderColor: 'rgba(229,77,77,.22)',
+  deleteContact: { marginTop: 10, paddingVertical: 16, paddingHorizontal: SW * 0.08,
+    backgroundColor: 'rgba(229,77,77,.06)',
+    borderRadius: 14, borderWidth: 1, borderColor: 'rgba(229,77,77,.22)', alignItems: 'center' },
+  deleteContactTx: { color: '#dc2626', fontSize: 15, fontWeight: '600' },
+  deleteConvBtn: { marginHorizontal: 24, marginTop: 20, marginBottom: 4,
+    paddingVertical: 16, paddingHorizontal: SW * 0.08,
+    borderRadius: 14, borderWidth: 1, borderColor: 'rgba(229,77,77,.22)',
     backgroundColor: 'rgba(229,77,77,.05)', alignItems: 'center' },
-  deleteConvTx: { color: '#dc2626', fontSize: 13 },
-  hdelBtn: { width: 28, height: 28, borderRadius: 14, backgroundColor: 'rgba(229,77,77,.1)',
+  deleteConvTx: { color: '#dc2626', fontSize: 15, fontWeight: '600' },
+  hdelBtn: { width: 36, height: 36, borderRadius: 18, backgroundColor: 'rgba(229,77,77,.1)',
     alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
-  hdelTx: { color: '#dc2626', fontSize: 12, fontWeight: '600' },
+  hdelTx: { color: '#dc2626', fontSize: 14, fontWeight: '600' },
 
   // History header (re-uses hd styles so keep ttl/sub/back compatible)
 

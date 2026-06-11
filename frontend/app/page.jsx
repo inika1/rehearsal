@@ -110,7 +110,7 @@ export default function App() {
 function ChooseScreen({ people, onPick, onAdd }) {
   return (
     <div className="scr">
-      <div className="hd"><div className="ttl">Choose someone</div><div className="sub">Who do you need to talk to?</div></div>
+      <div className="hd"><div className="ttl">Who do you need to talk to?</div><div className="sub">Pick someone you're having a hard time with</div></div>
       <div className="people">
         {people.slice(0, 3).map((p, i) => (
           <div className="person" key={p.id} onClick={() => onPick(p)}>
