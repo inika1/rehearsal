@@ -89,39 +89,53 @@ function playMp3Base64(base64) {
   const blob = new Blob([bytes], { type: 'audio/mpeg' });
   const url = URL.createObjectURL(blob);
 
-  // Reuse the shared element (already unlocked by unlockAudio()) so iOS allows playback.
-  // Creating a new Audio() each time breaks on iOS because it wasn't started from a gesture.
   if (!sharedAudio) sharedAudio = new Audio();
   const audio = sharedAudio;
   audio.onended = null;
   audio.onerror = null;
   audio.src = url;
   audio.load();
+
+  const token = {}; // unique per call
   activeAudio = audio;
+  audio._playToken = token;
 
   return new Promise((resolve) => {
     let settled = false;
-    let fallbackTimer = null;
+    let hardCapTimer = null;
+    let metaTimer = null;
+
+    const cleanup = () => {
+      clearTimeout(hardCapTimer);
+      clearTimeout(metaTimer);
+      audio.removeEventListener('ended', finish);
+      audio.removeEventListener('error', finish);
+      audio.removeEventListener('loadedmetadata', onMeta);
+    };
+
     const finish = () => {
       if (settled) return;
+      if (audio._playToken !== token) return; // stale call, ignore
       settled = true;
-      clearTimeout(fallbackTimer);
+      cleanup();
       URL.revokeObjectURL(url);
       if (activeAudio === audio) activeAudio = null;
       resolve();
     };
-    // Safari often doesn't fire the onended property — addEventListener is more reliable
-    audio.addEventListener('ended', finish, { once: true });
-    audio.addEventListener('error', finish, { once: true });
-    // Once we know the duration, set a tight fallback so we never hang
-    audio.addEventListener('loadedmetadata', () => {
+
+    const onMeta = () => {
       const ms = Number.isFinite(audio.duration) && audio.duration > 0
         ? (audio.duration + 1.5) * 1000
         : 30000;
-      fallbackTimer = setTimeout(finish, ms);
-    }, { once: true });
-    // Hard cap in case metadata never loads
-    fallbackTimer = setTimeout(finish, 45000);
+      clearTimeout(hardCapTimer); // replace hard cap with tighter one
+      metaTimer = setTimeout(finish, ms);
+    };
+
+    audio.addEventListener('ended', finish, { once: true });
+    audio.addEventListener('error', finish, { once: true });
+    audio.addEventListener('loadedmetadata', onMeta, { once: true });
+
+    hardCapTimer = setTimeout(finish, 45000);
     audio.play().catch(finish);
   });
 }
