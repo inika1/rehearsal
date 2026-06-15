@@ -112,6 +112,8 @@ export default function App() {
     setTutorialStep(null);
   };
 
+  const restartTutorial = () => setTutorialStep(0);
+
   const pickPerson = (p) => {
     setPerson(p);
     setScreen('describe');
@@ -180,7 +182,7 @@ export default function App() {
 
         {user && screen === 'choose' && (
           <ChooseScreen people={people} onPick={pickPerson} onAdd={openAddPerson}
-            userEmail={user?.email} onLogout={handleLogout} />
+            userEmail={user?.email} onLogout={handleLogout} onHelp={restartTutorial} />
         )}
         {user && screen === 'describe' && (
           <DescribeScreen person={person} situation={situation} setSituation={setSituation}
@@ -272,8 +274,8 @@ export default function App() {
         {/* Tutorial: History (step 6) */}
         {user && tutorialStep === 6 && screen === 'choose' && (
           <TutorialBanner
-            text="To review past sessions, tap on a contact then tap 'Previous conversations'. You can see your full history with each person there."
-            actionLabel="Done"
+            text="To review past sessions, tap on a contact then 'Previous conversations'. If you ever need this walkthrough again, tap the ? button in the top right."
+            actionLabel="Let's go"
             onAction={skipTutorial}
           />
         )}
@@ -339,10 +341,18 @@ function LoginScreen({ onAuth }) {
   );
 }
 
-function ChooseScreen({ people, onPick, onAdd, onLogout }) {
+function ChooseScreen({ people, onPick, onAdd, onLogout, onHelp }) {
   return (
     <div className="scr">
-      <div className="hd"><div className="ttl">Who do you need help talking to?</div><div className="sub">Pick someone you need to have a difficult conversation with</div></div>
+      <div className="hd">
+        <div className="choose-header">
+          <div>
+            <div className="ttl">Who do you need help talking to?</div>
+            <div className="sub">Pick someone you need to have a difficult conversation with</div>
+          </div>
+          <button className="help-btn" onClick={onHelp} title="Restart tutorial">?</button>
+        </div>
+      </div>
       <div className="people">
         {people.slice(0, 3).map((p, i) => (
           <div className="person" key={p.id} onClick={() => onPick(p)}>

@@ -26,6 +26,12 @@ body {
   color: rgba(255,255,255,.3); padding: 0 24px; margin: 16px 0 10px; }
 
 /* choose */
+.choose-header { display: flex; align-items: flex-start; gap: 10px; }
+.choose-header > div { flex: 1; }
+.help-btn { width: 34px; height: 34px; border-radius: 50%; background: rgba(196,169,110,.12);
+  border: 1px solid rgba(196,169,110,.3); color: #c4a96e; font-size: 15px; font-weight: 700;
+  font-family: inherit; cursor: pointer; flex-shrink: 0; margin-top: 4px; }
+.help-btn:hover { background: rgba(196,169,110,.22); }
 .people { display: flex; justify-content: space-around; padding: 30px 24px 10px; }
 .person { display: flex; flex-direction: column; align-items: center; gap: 9px; cursor: pointer; }
 .pcircle { width: 78px; height: 78px; border-radius: 50%; display: flex; align-items: center;

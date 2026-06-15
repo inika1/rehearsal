@@ -149,6 +149,8 @@ export default function App() {
     setTutorialStep(null);
   };
 
+  const restartTutorial = () => setTutorialStep(0);
+
   const handleLogout = async () => {
     await AsyncStorage.multiRemove(['auth_token', 'auth_user']);
     api.setToken(null);
@@ -175,7 +177,15 @@ export default function App() {
     setNewName('');
     setNewRel('');
     setAddingPerson(false);
-    if (tutorialStep === 1) setTutorialStep(2);
+  };
+
+  const addPersonForTutorial = async () => {
+    if (!newName.trim()) return;
+    const p = await api.addPerson(newName.trim(), newRel.trim());
+    setPeople([p, ...people]);
+    setNewName('');
+    setNewRel('');
+    setTutorialStep(2);
   };
 
   const doStartCall = async () => {
@@ -206,7 +216,7 @@ export default function App() {
     const updated = await api.finish(conversation.id, duration);
     setConversation(updated);
     setScreen('insights');
-    if (tutorialStep === 4) setTutorialStep(5);
+    if (tutorialStep === 4 || tutorialStep === 31) setTutorialStep(5);
   };
 
   const deleteConv = async () => {
@@ -325,6 +335,7 @@ export default function App() {
       <Modal
         visible={
           tutorialStep === 0 ||
+          tutorialStep === 1 ||
           tutorialStep === 2 ||
           (tutorialStep === 3 && screen === 'describe') ||
           (tutorialStep === 5 && screen === 'insights') ||
@@ -337,17 +348,46 @@ export default function App() {
           <View style={s.tutorialCard}>
             {tutorialStep === 0 && (
               <TutorialStep
-                tag="Getting started · 1 of 4"
+                tag="1 of 5"
                 title="Welcome to Bridge"
                 body="Let's walk you through your first session. Start by adding the person you need to have a difficult conversation with."
                 primaryLabel="Add your first person →"
-                onPrimary={() => { setTutorialStep(1); setAddingPerson(true); }}
+                onPrimary={() => setTutorialStep(1)}
                 onSkip={skipTutorial}
               />
             )}
+            {tutorialStep === 1 && (
+              <>
+                <Text style={s.tutorialTag}>2 of 5</Text>
+                <Text style={s.tutorialTitle}>Who do you need to talk to?</Text>
+                <Text style={s.tutorialBody}>Add someone you need to have a difficult conversation with.</Text>
+                <TextInput
+                  style={s.tutorialInput}
+                  placeholder="Name"
+                  placeholderTextColor="rgba(255,255,255,.3)"
+                  value={newName}
+                  onChangeText={setNewName}
+                  autoFocus
+                />
+                <TextInput
+                  style={s.tutorialInput}
+                  placeholder="Relationship (e.g. flatmate)"
+                  placeholderTextColor="rgba(255,255,255,.3)"
+                  value={newRel}
+                  onChangeText={setNewRel}
+                  returnKeyType="done"
+                />
+                <TouchableOpacity onPress={addPersonForTutorial} style={s.tutorialBtn}>
+                  <Text style={s.tutorialBtnTx}>Add them →</Text>
+                </TouchableOpacity>
+                <TouchableOpacity onPress={skipTutorial} style={s.tutorialSkip}>
+                  <Text style={s.tutorialSkipTx}>Skip tutorial</Text>
+                </TouchableOpacity>
+              </>
+            )}
             {tutorialStep === 2 && (
               <TutorialStep
-                tag="Getting started · 2 of 4"
+                tag="3 of 5"
                 title={`Now tap on ${people[0]?.name ?? 'them'}`}
                 body="They're in your list on the home screen. Tap their name to continue."
                 primaryLabel="Got it"
@@ -357,19 +397,19 @@ export default function App() {
             )}
             {tutorialStep === 3 && (
               <TutorialStep
-                tag="Getting started · 3 of 4"
-                title="Add some context (optional)"
-                body={`You can describe what happened with ${person?.name} to give your coach some background — or leave it blank and go straight into it.`}
-                primaryLabel="Start session →"
-                onPrimary={() => { setTutorialStep(4); doStartCall(); }}
-                onSkip={() => { skipTutorial(); doStartCall(); }}
+                tag="4 of 5"
+                title="Your coaching session"
+                body={`Here you'll talk with your coach about the situation with ${person?.name}. It works just like a phone call — speak naturally and they'll guide you.\n\nYou can add some context below, then tap the green call button to start.`}
+                primaryLabel="Got it, I'll add context →"
+                onPrimary={() => setTutorialStep(31)}
+                onSkip={skipTutorial}
               />
             )}
             {tutorialStep === 5 && (
               <TutorialStep
-                tag="Getting started · 4 of 5"
+                tag="5 of 5"
                 title="Your insights"
-                body="After each session you'll see how you communicated — what went well, moments to watch, and your dominant communication style. Tap 'See full transcript' to read the whole conversation."
+                body="After each session you'll see how you communicated — what went well, moments to watch, and your communication style. Tap 'See full transcript' to read the whole conversation."
                 primaryLabel="Got it"
                 onPrimary={() => setTutorialStep(6)}
                 onSkip={skipTutorial}
@@ -377,10 +417,10 @@ export default function App() {
             )}
             {tutorialStep === 6 && (
               <TutorialStep
-                tag="Getting started · 5 of 5"
-                title="Your past conversations"
-                body="To revisit a session, tap on a contact then tap 'Previous conversations'. Tap ✕ next to any conversation to delete it."
-                primaryLabel="Done"
+                tag="All done!"
+                title="You're all set"
+                body="To revisit past sessions, tap on a contact then 'Previous conversations'. You can delete sessions there too.\n\nIf you ever need a refresher, tap the ? button at the top of the home screen."
+                primaryLabel="Let's go"
                 onPrimary={skipTutorial}
               />
             )}
@@ -390,7 +430,7 @@ export default function App() {
 
       {screen === 'choose' && (
         <ChooseScreen people={people} onPick={pickPerson} onAdd={() => setAddingPerson(true)}
-          userEmail={user?.email} onLogout={handleLogout} />
+          userEmail={user?.email} onLogout={handleLogout} onHelp={restartTutorial} />
       )}
       {screen === 'describe' && (
         <DescribeScreen person={person} situation={situation} setSituation={setSituation}
@@ -584,12 +624,19 @@ function LoginScreen({ onAuth }) {
   );
 }
 
-function ChooseScreen({ people, onPick, onAdd, userEmail, onLogout }) {
+function ChooseScreen({ people, onPick, onAdd, userEmail, onLogout, onHelp }) {
   return (
     <View style={s.scr}>
       <View style={s.choosePad}>
-        <Text style={s.ttl}>Who do you need help talking to?</Text>
-        <Text style={s.sub}>Pick someone you need to have a difficult conversation with</Text>
+        <View style={s.chooseHeader}>
+          <View style={{ flex: 1 }}>
+            <Text style={s.ttl}>Who do you need help talking to?</Text>
+            <Text style={s.sub}>Pick someone you need to have a difficult conversation with</Text>
+          </View>
+          <TouchableOpacity onPress={onHelp} style={s.helpBtn}>
+            <Text style={s.helpBtnTx}>?</Text>
+          </TouchableOpacity>
+        </View>
       </View>
 
       <View style={s.chooseCard}>
@@ -1535,10 +1582,16 @@ const s = StyleSheet.create({
   tutorialTag: { fontSize: 11, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.8, color: '#c4a96e', marginBottom: 10 },
   tutorialTitle: { fontSize: 22, fontWeight: '700', color: '#f0e6d3', marginBottom: 10, lineHeight: 28 },
   tutorialBody: { fontSize: 14, color: 'rgba(255,255,255,.6)', lineHeight: 22, marginBottom: 22 },
+  tutorialInput: { backgroundColor: 'rgba(255,255,255,.07)', borderWidth: 1, borderColor: 'rgba(255,255,255,.15)', borderRadius: 12, padding: 13, color: '#f0e6d3', fontSize: 14, marginBottom: 10 },
   tutorialBtn: { backgroundColor: '#c4a96e', borderRadius: 13, padding: 14, alignItems: 'center', marginBottom: 10 },
   tutorialBtnTx: { color: '#0e0e1a', fontSize: 15, fontWeight: '700' },
   tutorialSkip: { alignItems: 'center', padding: 10 },
   tutorialSkipTx: { color: 'rgba(255,255,255,.3)', fontSize: 13 },
+
+  // Help button (ChooseScreen)
+  chooseHeader: { flexDirection: 'row', alignItems: 'flex-start', gap: 12 },
+  helpBtn: { width: 36, height: 36, borderRadius: 18, backgroundColor: 'rgba(196,169,110,.15)', borderWidth: 1, borderColor: 'rgba(196,169,110,.3)', alignItems: 'center', justifyContent: 'center', marginTop: 2, flexShrink: 0 },
+  helpBtnTx: { color: '#c4a96e', fontSize: 16, fontWeight: '700' },
 
   // History header (re-uses hd styles so keep ttl/sub/back compatible)
 
