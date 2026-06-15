@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {
   normalizeStyles,
   normalizeInsights,
+  splitTranscriptByPrompt,
   toShortTitle,
   styleNotesFromTranscript,
   humanizeInsightText,
@@ -230,4 +231,25 @@ test('styleNotesFromTranscript: handles empty transcript', () => {
   for (const key of ['passive', 'aggressive', 'passive_aggressive', 'assertive']) {
     assert.ok(Array.isArray(notes[key]?.instances));
   }
+});
+
+test('splitTranscriptByPrompt: separates direct practice from coach context', () => {
+  const transcript = [
+    { role: 'them', content: 'What are you feeling about this situation?' },
+    { role: 'me', content: 'I feel nervous and need advice.' },
+    { role: 'them', content: 'Now say the specific moment directly to them: "When you..."' },
+    { role: 'me', content: 'When you cancel last minute, I feel unimportant.' },
+    { role: 'them', content: 'What would a good outcome look like?' },
+    { role: 'me', content: 'I want us to make plans we can keep.' },
+  ];
+
+  const { directPractice, coachContext } = splitTranscriptByPrompt(transcript);
+
+  assert.deepEqual(directPractice.map((m) => m.content), [
+    'When you cancel last minute, I feel unimportant.',
+  ]);
+  assert.deepEqual(coachContext.map((m) => m.content), [
+    'I feel nervous and need advice.',
+    'I want us to make plans we can keep.',
+  ]);
 });

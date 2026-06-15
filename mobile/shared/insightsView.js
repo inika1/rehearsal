@@ -182,6 +182,29 @@ function normalizeHorsemanBlock(block) {
   };
 }
 
+function normalizeCoachPointers(raw) {
+  const tips = Array.isArray(raw?.tips)
+    ? raw.tips
+        .map((tip) => ({
+          text: humanizeInsightText(tip?.text || tip?.tip || tip?.pointer || ''),
+        }))
+        .filter((tip) => tip.text)
+        .slice(0, 3)
+    : [];
+  const phraseOptions = Array.isArray(raw?.phrase_options || raw?.phraseOptions)
+    ? (raw.phrase_options || raw.phraseOptions)
+        .map((option, index) => ({
+          label: option?.label || option?.tone || (index === 0 ? 'Softer' : 'More direct'),
+          text: humanizeInsightText(option?.text || option?.phrase || option?.version || ''),
+        }))
+        .filter((option) => option.text)
+        .slice(0, 2)
+    : [];
+  return { tips, phraseOptions };
+}
+
+const DEFAULT_COACH_POINTERS = { tips: [], phraseOptions: [] };
+
 export function finalizeBlocks(blocks) {
   const horseman = blocks
     .map(normalizeHorsemanBlock)
@@ -253,12 +276,13 @@ function parseInsightsField(conv) {
     return {
       blocks: payload.blocks,
       styleNotes: payload.style_notes || null,
+      coachPointers: normalizeCoachPointers(payload.coach_pointers || payload.coachPointers),
     };
   }
   if (Array.isArray(payload) && payload.length > 0) {
-    return { blocks: payload, styleNotes: null };
+    return { blocks: payload, styleNotes: null, coachPointers: DEFAULT_COACH_POINTERS };
   }
-  return { blocks: null, styleNotes: null };
+  return { blocks: null, styleNotes: null, coachPointers: DEFAULT_COACH_POINTERS };
 }
 
 function shortTitleFromInsights(conv) {
@@ -282,7 +306,11 @@ export function resolveInsights(conv) {
     assertive: conv.assertive ?? conv.tension,
   });
 
-  const { blocks: parsedBlocks, styleNotes: parsedNotes } = parseInsightsField(conv);
+  const {
+    blocks: parsedBlocks,
+    styleNotes: parsedNotes,
+    coachPointers,
+  } = parseInsightsField(conv);
 
   const styleNotes = {};
   for (const m of STYLE_METERS) {
@@ -291,7 +319,7 @@ export function resolveInsights(conv) {
 
   if (parsedBlocks) {
     const { horseman, didWell } = finalizeBlocks(parsedBlocks);
-    return { styles, horseman, didWell, styleNotes };
+    return { styles, horseman, didWell, styleNotes, coachPointers };
   }
 
   if (conv.insight_tend || conv.insight_try || conv.insight_used) {
@@ -304,6 +332,7 @@ export function resolveInsights(conv) {
       }),
       horseman: [],
       didWell: DEFAULT_DID_WELL,
+      coachPointers,
       styleNotes,
       legacy: {
         tend: conv.insight_tend,
@@ -317,6 +346,7 @@ export function resolveInsights(conv) {
     styles,
     horseman: [],
     didWell: DEFAULT_DID_WELL,
+    coachPointers,
     styleNotes,
   };
 }

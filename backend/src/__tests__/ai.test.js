@@ -42,9 +42,27 @@ test('replyAs: returns done:true after all guided questions exhausted', async ()
 });
 
 test('replyAs: first guided question is non-empty', async () => {
-  // No-key path uses static guided questions; name substitution only happens via the route
   const result = await replyAs(person, situation, []);
   assert.ok(result.reply.length > 0);
+});
+
+test('replyAs: guided questions include three direct-practice prompts', async () => {
+  const replies = [];
+  for (let i = 0; i < 7; i++) {
+    const history = Array.from({ length: i + 1 }, (_, idx) => ({
+      role: 'me',
+      content: `Answer ${idx + 1}`,
+    }));
+    const result = await replyAs(person, situation, history);
+    replies.push(result.reply);
+  }
+
+  const directPracticeCount = replies.filter((reply) =>
+    /as if Alex|directly|request directly/.test(reply)
+  ).length;
+
+  assert.equal(directPracticeCount, 3);
+  assert.ok(replies.every((reply) => !reply.includes('{name}')));
 });
 
 // ── analyse (no API key — mock analysis) ─────────────────────────────────────
@@ -68,10 +86,32 @@ test('analyse: always returns a did_well block', async () => {
 });
 
 test('analyse: detects aggressive language and returns horseman block', async () => {
-  const transcript = [{ role: 'me', content: 'You always leave a mess, it is ridiculous.' }];
+  const transcript = [
+    { role: 'them', content: 'Now say the specific moment directly to them: "When you..."' },
+    { role: 'me', content: 'You always leave a mess, it is ridiculous.' },
+  ];
   const result = await analyse(person, situation, transcript);
   const horseman = result.blocks.find((b) => ['critical', 'aggressive'].includes(b.type));
   assert.ok(result.styles.aggressive > 0);
+});
+
+test('analyse: style feedback only uses direct-practice answers', async () => {
+  const transcript = [
+    { role: 'them', content: 'What are you feeling about this situation?' },
+    { role: 'me', content: 'You always make this impossible and it is ridiculous.' },
+    { role: 'them', content: 'Try making the request directly: "I\'d like..."' },
+    { role: 'me', content: 'I would like us to make a dishes schedule.' },
+  ];
+
+  const result = await analyse(person, situation, transcript);
+  const allStyleQuotes = Object.values(result.styleNotes).flatMap((note) =>
+    (note.instances || []).map((inst) => inst.quote)
+  );
+
+  assert.ok(!allStyleQuotes.includes('You always make this impossible and it is ridiculous.'));
+  assert.ok(allStyleQuotes.includes('I would like us to make a dishes schedule.'));
+  assert.ok(result.coachPointers.tips.length > 0);
+  assert.equal(result.coachPointers.phraseOptions.length, 2);
 });
 
 test('analyse: handles empty transcript without throwing', async () => {

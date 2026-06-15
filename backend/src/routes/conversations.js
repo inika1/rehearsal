@@ -164,7 +164,12 @@ router.post('/:id/finish', async (req, res) => {
         aggressive: a.styles.aggressive,
         passive_aggressive: a.styles.passive_aggressive,
         assertive: a.styles.assertive,
-        insights: { blocks: a.blocks, style_notes: a.styleNotes, issue_title: a.issueTitle },
+        insights: {
+          blocks: a.blocks,
+          style_notes: a.styleNotes,
+          coach_pointers: a.coachPointers,
+          issue_title: a.issueTitle,
+        },
         issue_summary: a.issueSummary,
         tension: a.styles.assertive,
         emotion: null,

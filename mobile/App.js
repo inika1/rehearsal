@@ -1099,7 +1099,7 @@ function InsightsScreen({ conv, noInput, onHome, onBack, onTranscript, onDeleteC
     );
   }
 
-  const { styles, horseman, didWell, styleNotes } = resolveInsights(conv);
+  const { styles, horseman, didWell, styleNotes, coachPointers } = resolveInsights(conv);
   const summary = displayIssueSummary(conv);
   const horsemen = horseman || [];
   const isGood = horsemen.length === 0;
@@ -1129,6 +1129,7 @@ function InsightsScreen({ conv, noInput, onHome, onBack, onTranscript, onDeleteC
       <ScrollView style={{ flex: 1 }}>
         {didWell && <DidWellSection block={didWell} />}
         {horsemen.map((b, i) => <WatchOutSection key={i} block={b} />)}
+        <CoachPointersSection pointers={coachPointers} />
         <StyleNoteSection meter={dominant} value={styles[dominant.key]} instances={styleNotes?.[dominant.key]?.instances || []} />
         {showRunner && (
           <StyleNoteSection meter={runner} value={styles[runner.key]} instances={styleNotes?.[runner.key]?.instances || []} />
@@ -1149,6 +1150,27 @@ function InsightsScreen({ conv, noInput, onHome, onBack, onTranscript, onDeleteC
       <TouchableOpacity onPress={onTranscript} style={s.viewTx}>
         <Text style={s.viewTxTx}>See full transcript</Text>
       </TouchableOpacity>
+    </View>
+  );
+}
+
+function CoachPointersSection({ pointers }) {
+  const tips = pointers?.tips || [];
+  const phraseOptions = pointers?.phraseOptions || [];
+  if (!tips.length && !phraseOptions.length) return null;
+
+  return (
+    <View style={s.insSection}>
+      <Text style={s.insSectionLbl}>Coach pointers</Text>
+      {tips.map((tip, i) => (
+        <Text key={i} style={[s.insNote, i > 0 ? s.insMoment : undefined]}>{tip.text}</Text>
+      ))}
+      {phraseOptions.map((option, i) => (
+        <View key={i} style={i > 0 ? s.insMoment : undefined}>
+          <Text style={s.insPointerLabel}>{option.label}</Text>
+          <Text style={s.insQuote}>{'“'}{option.text}{'”'}</Text>
+        </View>
+      ))}
     </View>
   );
 }
@@ -1476,6 +1498,7 @@ const s = StyleSheet.create({
   insMoment: { marginTop: 10, paddingTop: 10, borderTopWidth: 1, borderTopColor: 'rgba(0,0,0,.06)' },
   insQuote: { fontSize: 13, color: '#111827', fontStyle: 'italic', lineHeight: 20, marginBottom: 4 },
   insNote: { fontSize: 13, color: 'rgba(0,0,0,.5)', lineHeight: 20, marginBottom: 6 },
+  insPointerLabel: { fontSize: 11, fontWeight: '700', color: '#1e3a8a', marginBottom: 4 },
   insInstead: { marginTop: 10, paddingTop: 10, borderTopWidth: 1, borderTopColor: 'rgba(0,0,0,.08)' },
   insInsteadTx: { fontSize: 13, color: 'rgba(0,0,0,.7)', lineHeight: 20 },
   insStyleName: { fontSize: 15, fontWeight: '600', marginBottom: 5 },

@@ -1,15 +1,15 @@
-import { normalizeInsights } from './insights.js';
+import { normalizeInsights, splitTranscriptByPrompt } from './insights.js';
 
 const API_KEY = process.env.GROQ_API_KEY;
 const MODEL = 'llama-3.3-70b-versatile';
 
 // Coaching questions that walk the user through Gottman + assertive communication prep
 const GUIDED_QUESTIONS = [
-  `Let's start simple — what do you actually want to say to ${'{name}'}? Just say it out loud, don't filter it yet.`,
+  `Let's start simple — say the rough version as if ${'{name}'} is right there: "${'{name}'}, ...". Don't filter it yet.`,
   `What are you feeling about this situation? Try to name the emotion — not what they did, just how you feel.`,
-  `Can you point to one specific thing that happened — a moment or action — rather than a general pattern?`,
+  `Now say the specific moment directly to them: "When you..." Keep it to one moment or action, not a general pattern.`,
   `What impact did that have on you personally? How did it affect you?`,
-  `What do you actually need from them? What would feel better going forward?`,
+  `Try making the request directly: "I'd like..." or "I need...". What do you actually want from them going forward?`,
   `What would a good outcome look like — what are you hoping changes after this conversation?`,
   `You've covered everything you need. Is there anything else you want to add before we wrap up?`,
 ];
@@ -36,6 +36,13 @@ const ANALYSIS_SCHEMA = `{
     "instances": [
       {"quote": "<exact words they said>", "why": "<second person: why this moment was positive>"},
       {"quote": "...", "why": "..."}
+    ]
+  },
+  "coach_pointers": {
+    "tips": [{"text": "<tip based only on answers where the user talked to the coach for advice/context>"}],
+    "phrase_options": [
+      {"label": "Softer", "text": "<gentler way they could say the core request to the person>"},
+      {"label": "More direct", "text": "<clearer, firmer way they could say the core request to the person>"}
     ]
   }
 }`;
@@ -68,7 +75,7 @@ export async function replyAs(person, situation, history) {
       return { reply: WRAP_UP, done: true };
     }
     const idx = Math.max(0, userMsgCount - 1);
-    return { reply: GUIDED_QUESTIONS[idx], done: false };
+    return { reply: GUIDED_QUESTIONS[idx].replaceAll('{name}', person.name), done: false };
   }
 
   const system =
@@ -77,6 +84,10 @@ export async function replyAs(person, situation, history) {
     `Your only job is to help them get clear on what they want to say — not to roleplay as ${person.name}, ` +
     `not to judge their words. Ask questions that help them articulate their feelings, ` +
     `name the specific thing that happened, understand the impact it had on them, and figure out what they need. ` +
+    `Use a guided mix: exactly three questions should ask them to practise speaking as if ${person.name} is in front of them, ` +
+    `using direct phrasing like "${person.name}, ...", "When you...", or "I'd like...". ` +
+    `All other questions should be ordinary coaching questions where they talk to you about their feelings, impact, outcome, or anything left unsaid. ` +
+    `Do not roleplay as ${person.name} or answer on ${person.name}'s behalf. ` +
     `Ask one question at a time. Keep replies short — 1-2 sentences, like natural spoken English (contractions are fine). ` +
     `Sound warm and human, not stiff or robotic — no lists or jargon. ` +
     `Once you have gathered their emotion, the specific event, the impact it had on them, and what they need — ` +
@@ -136,7 +147,22 @@ function mockDidWellInstances(myTurns) {
 }
 
 function mockAnalyse(transcript, situation = '') {
-  const myTurns = transcript.filter((m) => m.role === 'me');
+  const { directPractice, coachContext } = splitTranscriptByPrompt(transcript);
+  const myTurns = directPractice;
+  if (!myTurns.length) {
+    return normalizeInsights(
+      {
+        passive: 0,
+        aggressive: 0,
+        passive_aggressive: 0,
+        assertive: 0,
+        conversation_good: true,
+        coachTranscript: coachContext,
+      },
+      directPractice,
+      situation
+    );
+  }
   const text = myTurns.map((m) => m.content.toLowerCase()).join(' ');
   const hedges = (text.match(/\b(sorry|just|maybe|kind of|i guess|no rush|it's fine)\b/g) || [])
     .length;
@@ -158,8 +184,9 @@ function mockAnalyse(transcript, situation = '') {
         assertive: 60,
         conversation_good: true,
         did_well: mockDidWellInstances(myTurns),
+        coachTranscript: coachContext,
       },
-      transcript,
+      directPractice,
       situation
     );
   }
@@ -172,6 +199,7 @@ function mockAnalyse(transcript, situation = '') {
     conversation_good: false,
   };
   raw.did_well = mockDidWellInstances(myTurns);
+  raw.coachTranscript = coachContext;
   if (hostile > 0) {
     raw.critical = {
       quote: lastQuote,
@@ -185,16 +213,20 @@ function mockAnalyse(transcript, situation = '') {
       instead: 'State one clear request without apologising for having it.',
     };
   }
-  return normalizeInsights(raw, transcript, situation);
+  return normalizeInsights(raw, directPractice, situation);
 }
 
 export async function analyse(person, situation, transcript) {
   if (!API_KEY) return mockAnalyse(transcript, situation);
 
+  const { directPractice, coachContext } = splitTranscriptByPrompt(transcript);
+
   const system =
     `You are a communication coach analysing a coaching session transcript (Gottman + assertiveness). ` +
     `The user prepared for: "${situation}" with ${person.name}. ` +
-    `Analyse ONLY what the user said (lines marked User). Score their communication style across four dimensions that MUST sum to 100. Be honest and discriminating — most real conversations are NOT mostly assertive. ` +
+    `You will receive two transcript sections. Analyse communication style ONLY from DIRECT PRACTICE lines, where the user was pretending to speak to ${person.name}. ` +
+    `Do NOT score, quote, or criticise the user's language from COACH CONTEXT lines; those are places where the user was talking to you for advice or context. ` +
+    `Score the DIRECT PRACTICE language across four dimensions that MUST sum to 100. Be honest and discriminating — most real conversations are NOT mostly assertive. ` +
     `PASSIVE (score high if): excessive apologising, heavy hedging ("sorry", "just", "I guess", "maybe", "no rush", "it's fine"), backing away from what they need, not stating wants clearly. Example: "Sorry I even brought it up, it's probably nothing." ` +
     `AGGRESSIVE (score high if): blaming, absolutes ("you always", "you never"), ultimatums, dismissing the other person's perspective, threatening language. Example: "This is completely unacceptable and you need to fix it now." ` +
     `PASSIVE-AGGRESSIVE (score high if): surface agreement with embedded resentment, sarcasm, veiled criticism, martyrdom, guilt-tripping. Example: "Fine, I'll just do it myself like I always do." ` +
@@ -206,6 +238,8 @@ export async function analyse(person, situation, transcript) {
     `stonewalling (shutting down, one-word answers, refusing to engage). ` +
     `For each detected pattern, quote their exact words, explain briefly in second person (you/your) why it fits, and suggest better phrasing. ` +
     `Always include did_well with 2-3 instances when possible (at least 1): quote exact words and why that moment was positive—always you/your, never "the user". ` +
+    `Also include coach_pointers based ONLY on COACH CONTEXT lines: 1-3 practical tips and exactly two phrase_options. ` +
+    `The two phrase_options should say the same core request with different intensity: label one "Softer" and make it gentler/sugarcoated, label the other "More direct" and make it clear but still respectful. ` +
     `If NONE of the four horsemen apply: set conversation_good true and all horsemen null. ` +
     `If TWO OR MORE horsemen apply, return ALL of them — do not drop any. Each must include quote, why, and instead. ` +
     `If any horseman is present, conversation_good must be false. ` +
@@ -213,13 +247,20 @@ export async function analyse(person, situation, transcript) {
     `issue_summary must be one clear sentence in second person (you/your). Every why and instead field must also use you/your—never "the user", "user's", or "User". ` +
     `Return ONLY JSON, no markdown, matching this schema:\n${ANALYSIS_SCHEMA}`;
 
-  const convoText = transcript
+  const directText = directPractice
     .map((m) => `${m.role === 'me' ? 'User' : person.name}: ${m.content}`)
     .join('\n');
-  const raw = await callGroq(system, [{ role: 'user', content: convoText }], 1400);
+  const coachText = coachContext
+    .map((m) => `User: ${m.content}`)
+    .join('\n');
+  const convoText =
+    `DIRECT PRACTICE LINES (use for style scoring, style notes, horsemen, did_well):\n${directText || '(none)'}\n\n` +
+    `COACH CONTEXT LINES (use only for coach_pointers):\n${coachText || '(none)'}`;
+  const raw = await callGroq(system, [{ role: 'user', content: convoText }], 1600);
   try {
     const parsed = JSON.parse(raw.replace(/```json|```/g, '').trim());
-    return normalizeInsights(parsed, transcript, situation);
+    parsed.coachTranscript = coachContext;
+    return normalizeInsights(parsed, directPractice, situation);
   } catch {
     return mockAnalyse(transcript, situation);
   }
