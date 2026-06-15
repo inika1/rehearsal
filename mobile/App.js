@@ -177,15 +177,7 @@ export default function App() {
     setNewName('');
     setNewRel('');
     setAddingPerson(false);
-  };
-
-  const addPersonForTutorial = async () => {
-    if (!newName.trim()) return;
-    const p = await api.addPerson(newName.trim(), newRel.trim());
-    setPeople([p, ...people]);
-    setNewName('');
-    setNewRel('');
-    setTutorialStep(2);
+    if (tutorialStep === 1) setTutorialStep(2);
   };
 
   const doStartCall = async () => {
@@ -335,7 +327,6 @@ export default function App() {
       <Modal
         visible={
           tutorialStep === 0 ||
-          tutorialStep === 1 ||
           tutorialStep === 2 ||
           (tutorialStep === 3 && screen === 'describe') ||
           (tutorialStep === 5 && screen === 'insights') ||
@@ -350,40 +341,11 @@ export default function App() {
               <TutorialStep
                 tag="1 of 5"
                 title="Welcome to Bridge"
-                body="Let's walk you through your first session. Start by adding the person you need to have a difficult conversation with."
-                primaryLabel="Add your first person →"
+                body="Let's walk you through your first session. Tap the + button below to add the person you need to have a difficult conversation with."
+                primaryLabel="Got it →"
                 onPrimary={() => setTutorialStep(1)}
                 onSkip={skipTutorial}
               />
-            )}
-            {tutorialStep === 1 && (
-              <>
-                <Text style={s.tutorialTag}>2 of 5</Text>
-                <Text style={s.tutorialTitle}>Who do you need to talk to?</Text>
-                <Text style={s.tutorialBody}>Add someone you need to have a difficult conversation with.</Text>
-                <TextInput
-                  style={s.tutorialInput}
-                  placeholder="Name"
-                  placeholderTextColor="rgba(255,255,255,.3)"
-                  value={newName}
-                  onChangeText={setNewName}
-                  autoFocus
-                />
-                <TextInput
-                  style={s.tutorialInput}
-                  placeholder="Relationship (e.g. flatmate)"
-                  placeholderTextColor="rgba(255,255,255,.3)"
-                  value={newRel}
-                  onChangeText={setNewRel}
-                  returnKeyType="done"
-                />
-                <TouchableOpacity onPress={addPersonForTutorial} style={s.tutorialBtn}>
-                  <Text style={s.tutorialBtnTx}>Add them →</Text>
-                </TouchableOpacity>
-                <TouchableOpacity onPress={skipTutorial} style={s.tutorialSkip}>
-                  <Text style={s.tutorialSkipTx}>Skip tutorial</Text>
-                </TouchableOpacity>
-              </>
             )}
             {tutorialStep === 2 && (
               <TutorialStep
@@ -399,8 +361,8 @@ export default function App() {
               <TutorialStep
                 tag="4 of 5"
                 title="Your coaching session"
-                body={`Here you'll talk with your coach about the situation with ${person?.name}. It works just like a phone call — speak naturally and they'll guide you.\n\nYou can add some context below, then tap the green call button to start.`}
-                primaryLabel="Got it, I'll add context →"
+                body={`Here you'll talk with your coach about the situation with ${person?.name}. It works just like a phone call — speak naturally and they'll guide you.\n\nYou can add some context below if neccesary, then tap the green call button to start.`}
+                primaryLabel="Got it →"
                 onPrimary={() => setTutorialStep(31)}
                 onSkip={skipTutorial}
               />
