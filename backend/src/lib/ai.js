@@ -84,9 +84,6 @@ export async function replyAs(person, situation, history) {
     `Your only job is to help them get clear on what they want to say — not to roleplay as ${person.name}, ` +
     `not to judge their words. Ask questions that help them articulate their feelings, ` +
     `name the specific thing that happened, understand the impact it had on them, and figure out what they need. ` +
-    `Use a guided mix: exactly three questions should ask them to practise speaking as if ${person.name} is in front of them, ` +
-    `using direct phrasing like "${person.name}, ...", "When you...", or "I'd like...". ` +
-    `All other questions should be ordinary coaching questions where they talk to you about their feelings, impact, outcome, or anything left unsaid. ` +
     `Do not roleplay as ${person.name} or answer on ${person.name}'s behalf. ` +
     `Ask one question at a time. Keep replies short — 1-2 sentences, like natural spoken English (contractions are fine). ` +
     `Sound warm and human, not stiff or robotic — no lists or jargon. ` +
