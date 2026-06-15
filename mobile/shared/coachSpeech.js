@@ -155,36 +155,18 @@ function speakWithSystemVoice(phrase) {
 
   return new Promise((resolve) => {
     const timeout = setTimeout(resolve, 20000);
-    // Release recording session so AVSpeechSynthesizer can use the audio output
-    Audio.setAudioModeAsync({
-      playsInSilentModeIOS: true,
-      allowsRecordingIOS: false,
-      interruptionModeIOS: 2,
-      shouldDuckAndroid: true,
-      playThroughEarpieceAndroid: false,
-    }).catch(() => {}).then(() => {
-      pickNativeVoiceId().then((voice) => {
-        Speech.speak(phrase, {
-          language: 'en-GB',
-          voice: voice || undefined,
-          pitch: PITCH,
-          rate: RATE,
-          onDone: () => {
-            clearTimeout(timeout);
-            ensureAudioMode().catch(() => {});
-            resolve();
-          },
-          onStopped: () => {
-            clearTimeout(timeout);
-            ensureAudioMode().catch(() => {});
-            resolve();
-          },
-          onError: () => {
-            clearTimeout(timeout);
-            ensureAudioMode().catch(() => {});
-            resolve();
-          },
-        });
+    // Keep the audio session in PlayAndRecord mode — TTS works fine in it,
+    // and switching to Playback-only here races with the recognition module
+    // releasing its session, causing Speech.speak callbacks to never fire.
+    pickNativeVoiceId().then((voice) => {
+      Speech.speak(phrase, {
+        language: 'en-GB',
+        voice: voice || undefined,
+        pitch: PITCH,
+        rate: RATE,
+        onDone: () => { clearTimeout(timeout); resolve(); },
+        onStopped: () => { clearTimeout(timeout); resolve(); },
+        onError: () => { clearTimeout(timeout); resolve(); },
       });
     });
   });
