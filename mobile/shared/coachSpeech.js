@@ -195,6 +195,12 @@ export async function speakCoachText(text, { audioBase64 } = {}) {
   const phrase = humanizeForSpeech(text);
   if (!phrase) return;
 
+  // data: URIs are not supported by expo-av on native — use system voice directly
+  if (Platform.OS !== 'web') {
+    await speakWithSystemVoice(phrase);
+    return;
+  }
+
   if (audioBase64) {
     try {
       await playMp3Base64(audioBase64);

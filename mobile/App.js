@@ -361,7 +361,7 @@ export default function App() {
               <TutorialStep
                 tag="4 of 5"
                 title="Your coaching session"
-                body={`Here you'll talk with your coach about the situation with ${person?.name}. It works just like a phone call — speak naturally and they'll guide you.\n\nYou can add some context below if neccesary, then tap the green call button to start.`}
+                body={`Here you'll talk with your coach about the situation with ${person?.name}. It works just like a phone call — speak naturally and they'll guide you. \n\n You can add some context below if neccesary, then tap the green call button to start.`}
                 primaryLabel="Got it →"
                 onPrimary={() => setTutorialStep(31)}
                 onSkip={skipTutorial}
@@ -381,7 +381,7 @@ export default function App() {
               <TutorialStep
                 tag="All done!"
                 title="You're all set"
-                body="To revisit past sessions, tap on a contact then 'Previous conversations'. You can delete sessions there too.\n\nIf you ever need a refresher, tap the ? button at the top of the home screen."
+                body = {`To revisit past sessions, tap on a contact then 'Previous conversations'. You can delete sessions there too. \n\n If you ever need a refresher, tap the ? button at the top of the home screen.`}
                 primaryLabel="Let's go"
                 onPrimary={skipTutorial}
               />
