@@ -220,7 +220,7 @@ export default function App() {
         {/* Tutorial: Welcome (step 0) */}
         {user && tutorialStep === 0 && (
           <TutorialCard
-            tag="Getting started · 1 of 4"
+            tag="Getting started · 1 of 5"
             title="Welcome to Bridge"
             body="Let's walk you through your first session. Start by adding the person you need to have a difficult conversation with."
             primaryLabel="Add your first person →"
@@ -233,7 +233,7 @@ export default function App() {
         {/* Tutorial: Select person (step 2) */}
         {user && tutorialStep === 2 && screen === 'choose' && (
           <TutorialBanner
-            text="They're in your list. Tap on them to get started."
+            text={`Great! Now tap on ${people[0]?.name ?? 'them'} to continue.`}
             onSkip={skipTutorial}
           />
         )}
@@ -249,7 +249,7 @@ export default function App() {
         {/* Tutorial: Pre-call explanation (step 4) */}
         {user && tutorialStep === 4 && screen !== 'call' && (
           <TutorialCard
-            tag="Getting started · 2 of 4"
+            tag="Getting started · 3 of 5"
             title="Your coaching session"
             body={`Here you'll talk with your coach about the situation with ${person?.name}. It works just like a phone call — speak naturally and they'll guide you through it. Tap the red hang-up button when you're done to see your insights.`}
             primaryLabel="Start session →"

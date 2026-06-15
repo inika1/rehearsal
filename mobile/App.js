@@ -165,7 +165,7 @@ export default function App() {
     setPerson(p);
     setSituation('');
     setScreen('describe');
-    if (tutorialStep === 2) setTutorialStep(3);
+    if (tutorialStep === 2 || tutorialStep === 21) setTutorialStep(3);
   };
 
   const addPerson = async () => {
@@ -325,6 +325,7 @@ export default function App() {
       <Modal
         visible={
           tutorialStep === 0 ||
+          tutorialStep === 2 ||
           (tutorialStep === 3 && screen === 'describe') ||
           (tutorialStep === 5 && screen === 'insights') ||
           (tutorialStep === 6 && screen === 'choose')
@@ -344,9 +345,19 @@ export default function App() {
                 onSkip={skipTutorial}
               />
             )}
-            {tutorialStep === 3 && (
+            {tutorialStep === 2 && (
               <TutorialStep
                 tag="Getting started · 2 of 4"
+                title={`Now tap on ${people[0]?.name ?? 'them'}`}
+                body="They're in your list on the home screen. Tap their name to continue."
+                primaryLabel="Got it"
+                onPrimary={() => setTutorialStep(21)}
+                onSkip={skipTutorial}
+              />
+            )}
+            {tutorialStep === 3 && (
+              <TutorialStep
+                tag="Getting started · 3 of 4"
                 title="Add some context (optional)"
                 body={`You can describe what happened with ${person?.name} to give your coach some background — or leave it blank and go straight into it.`}
                 primaryLabel="Start session →"
@@ -356,7 +367,7 @@ export default function App() {
             )}
             {tutorialStep === 5 && (
               <TutorialStep
-                tag="Getting started · 3 of 4"
+                tag="Getting started · 4 of 5"
                 title="Your insights"
                 body="After each session you'll see how you communicated — what went well, moments to watch, and your dominant communication style. Tap 'See full transcript' to read the whole conversation."
                 primaryLabel="Got it"
@@ -366,7 +377,7 @@ export default function App() {
             )}
             {tutorialStep === 6 && (
               <TutorialStep
-                tag="Getting started · 4 of 4"
+                tag="Getting started · 5 of 5"
                 title="Your past conversations"
                 body="To revisit a session, tap on a contact then tap 'Previous conversations'. Tap ✕ next to any conversation to delete it."
                 primaryLabel="Done"
