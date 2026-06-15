@@ -146,7 +146,6 @@ export default function App() {
   };
 
   const startCall = async () => {
-    if (tutorialStep === 3) { setTutorialStep(4); return; }
     await doStartCall();
   };
 
@@ -154,7 +153,7 @@ export default function App() {
     const updated = await api.finish(conversation.id, duration);
     setConversation(updated);
     setScreen('insights');
-    if (tutorialStep === 4) setTutorialStep(5);
+    if (tutorialStep === 3 || tutorialStep === 4) setTutorialStep(5);
   };
 
   const openHistory = async () => { setHistory(await api.history(person?.id)); setScreen('history'); };
@@ -240,24 +239,11 @@ export default function App() {
           />
         )}
 
-        {/* Tutorial: Context is optional (step 3) */}
+        {/* Tutorial: Context is optional + pre-call explanation (step 3) */}
         {user && tutorialStep === 3 && screen === 'describe' && (
           <TutorialBanner
-            text="You can describe what happened to give your coach some context — or leave it blank. Tap the green button when you're ready to start."
+            text={`Optionally describe what happened to give your coach context — or leave it blank. Your session works like a phone call: speak naturally and your coach will guide you. Tap the green button to start, then hang up when you're done.`}
             onSkip={skipTutorial}
-          />
-        )}
-
-        {/* Tutorial: Pre-call explanation (step 4) */}
-        {user && tutorialStep === 4 && screen !== 'call' && (
-          <TutorialCard
-            tag="Getting started · 3 of 5"
-            title="Your coaching session"
-            body={`Here you'll talk with your coach about the situation with ${person?.name}. It works just like a phone call — speak naturally and they'll guide you through it. Tap the red hang-up button when you're done to see your insights.`}
-            primaryLabel="Start session →"
-            onPrimary={doStartCall}
-            skipLabel="Skip tutorial"
-            onSkip={() => { skipTutorial(); doStartCall(); }}
           />
         )}
 

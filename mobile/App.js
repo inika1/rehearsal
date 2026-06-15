@@ -388,8 +388,8 @@ export default function App() {
             {tutorialStep === 2 && (
               <TutorialStep
                 tag="3 of 5"
-                title={`Now tap on ${people[0]?.name ?? 'them'}`}
-                body="They're in your list on the home screen. Tap their name to continue."
+                title={`Now tap on ${people[0]?.name ?? 'them'} to start your coaching call with them`}
+                body="They're now in on your home screen, you can tap their name to continue."
                 primaryLabel="Got it"
                 onPrimary={() => setTutorialStep(21)}
                 onSkip={skipTutorial}
