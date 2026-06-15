@@ -52,6 +52,10 @@ export default function App() {
   const [conversation, setConversation] = useState(null);
   const [messages, setMessages] = useState([]);
   const [history, setHistory] = useState([]);
+  const [tutorialStep, setTutorialStep] = useState(null);
+  const [addingPerson, setAddingPerson] = useState(false);
+  const [newName, setNewName] = useState('');
+  const [newRel, setNewRel] = useState('');
 
   useEffect(() => {
     configureCoachSpeech(API);
@@ -80,13 +84,14 @@ export default function App() {
     }
   }, []);
 
-  const handleAuth = async (token, userObj) => {
+  const handleAuth = async (token, userObj, isNew = false) => {
     api.setToken(token);
     localStorage.setItem('auth_token', token);
     localStorage.setItem('auth_user', JSON.stringify(userObj));
     const data = await api.getPeople().catch(() => []);
     if (Array.isArray(data)) setPeople(data);
     setUser(userObj);
+    if (isNew && !localStorage.getItem('tutorial_done')) setTutorialStep(0);
   };
 
   const handleLogout = () => {
@@ -99,19 +104,37 @@ export default function App() {
     setConversation(null);
     setMessages([]);
     setScreen('choose');
+    setTutorialStep(null);
   };
 
-  const pickPerson = (p) => { setPerson(p); setScreen('describe'); };
+  const skipTutorial = () => {
+    localStorage.setItem('tutorial_done', '1');
+    setTutorialStep(null);
+  };
 
-  const addPerson = async () => {
-    const name = prompt('Name?');
-    if (!name) return;
-    const rel = prompt('Relationship? (e.g. flatmate)') || '';
-    const p = await api.addPerson(name, rel);
+  const pickPerson = (p) => {
+    setPerson(p);
+    setScreen('describe');
+    if (tutorialStep === 2) setTutorialStep(3);
+  };
+
+  const openAddPerson = () => {
+    setNewName('');
+    setNewRel('');
+    setAddingPerson(true);
+  };
+
+  const confirmAddPerson = async () => {
+    if (!newName.trim()) return;
+    const p = await api.addPerson(newName.trim(), newRel.trim());
     setPeople([p, ...people]);
+    setNewName('');
+    setNewRel('');
+    setAddingPerson(false);
+    if (tutorialStep === 1) setTutorialStep(2);
   };
 
-  const startCall = async () => {
+  const doStartCall = async () => {
     unlockAudio(); // must run synchronously inside the tap gesture to satisfy iOS autoplay policy
     const title = situation.split(' ').slice(0, 3).join(' ') || 'Untitled';
     const conv = await api.startConversation(person.id, title, situation);
@@ -120,10 +143,16 @@ export default function App() {
     setScreen('call');
   };
 
+  const startCall = async () => {
+    if (tutorialStep === 3) { setTutorialStep(4); return; }
+    await doStartCall();
+  };
+
   const endCall = async (duration) => {
     const updated = await api.finish(conversation.id, duration);
     setConversation(updated);
     setScreen('insights');
+    if (tutorialStep === 4) setTutorialStep(5);
   };
 
   const openHistory = async () => { setHistory(await api.history(person?.id)); setScreen('history'); };
@@ -137,15 +166,20 @@ export default function App() {
 
   if (!authReady) return <div className="stage"><div className="phone"><div className="phone-in" /></div></div>;
 
+  const goHome = () => {
+    if (tutorialStep === 5) setTutorialStep(6);
+    setScreen('choose');
+  };
+
   return (
     <div className="stage">
-      <div className="phone"><div className="phone-in">
+      <div className="phone"><div className="phone-in" style={{ position: 'relative' }}>
         <div className="statusbar"><span>9:41</span><span className="brand">Bridge</span><span>●●●</span></div>
 
         {!user && <LoginScreen onAuth={handleAuth} />}
 
         {user && screen === 'choose' && (
-          <ChooseScreen people={people} onPick={pickPerson} onAdd={addPerson}
+          <ChooseScreen people={people} onPick={pickPerson} onAdd={openAddPerson}
             userEmail={user?.email} onLogout={handleLogout} />
         )}
         {user && screen === 'describe' && (
@@ -157,15 +191,91 @@ export default function App() {
             messages={messages} setMessages={setMessages} onEnd={endCall} />
         )}
         {user && screen === 'insights' && conversation && (
-          <InsightsScreen conv={conversation} onHome={() => setScreen('choose')}
+          <InsightsScreen conv={conversation} onHome={goHome}
             onTranscript={() => setScreen('transcript')} />
         )}
         {user && screen === 'transcript' && (
           <TranscriptScreen conv={conversation} messages={messages}
-            onBack={() => setScreen('insights')} onNew={() => setScreen('choose')} />
+            onBack={() => setScreen('insights')} onNew={goHome} />
         )}
         {user && screen === 'history' && (
           <HistoryScreen history={history} person={person} onOpen={openConversation} onBack={() => setScreen('describe')} />
+        )}
+
+        {/* Add person modal */}
+        {addingPerson && (
+          <AddPersonModal
+            name={newName} rel={newRel}
+            onNameChange={setNewName} onRelChange={setNewRel}
+            onAdd={confirmAddPerson}
+            onCancel={() => {
+              setAddingPerson(false);
+              setNewName('');
+              setNewRel('');
+              if (tutorialStep === 1) skipTutorial();
+            }}
+          />
+        )}
+
+        {/* Tutorial: Welcome (step 0) */}
+        {user && tutorialStep === 0 && (
+          <TutorialCard
+            tag="Getting started · 1 of 4"
+            title="Welcome to Bridge"
+            body="Let's walk you through your first session. Start by adding the person you need to have a difficult conversation with."
+            primaryLabel="Add your first person →"
+            onPrimary={() => { setTutorialStep(1); openAddPerson(); }}
+            skipLabel="Skip tutorial"
+            onSkip={skipTutorial}
+          />
+        )}
+
+        {/* Tutorial: Select person (step 2) */}
+        {user && tutorialStep === 2 && screen === 'choose' && (
+          <TutorialBanner
+            text="They're in your list. Tap on them to get started."
+            onSkip={skipTutorial}
+          />
+        )}
+
+        {/* Tutorial: Context is optional (step 3) */}
+        {user && tutorialStep === 3 && screen === 'describe' && (
+          <TutorialBanner
+            text="You can describe what happened to give your coach some context — or leave it blank. Tap the green button when you're ready to start."
+            onSkip={skipTutorial}
+          />
+        )}
+
+        {/* Tutorial: Pre-call explanation (step 4) */}
+        {user && tutorialStep === 4 && screen !== 'call' && (
+          <TutorialCard
+            tag="Getting started · 2 of 4"
+            title="Your coaching session"
+            body={`Here you'll talk with your coach about the situation with ${person?.name}. It works just like a phone call — speak naturally and they'll guide you through it. Tap the red hang-up button when you're done to see your insights.`}
+            primaryLabel="Start session →"
+            onPrimary={doStartCall}
+            skipLabel="Skip tutorial"
+            onSkip={() => { skipTutorial(); doStartCall(); }}
+          />
+        )}
+
+        {/* Tutorial: Insights explanation (step 5) */}
+        {user && tutorialStep === 5 && screen === 'insights' && (
+          <TutorialBanner
+            text="After each session you'll see how you communicated — what went well, moments to watch, and your dominant style. Tap 'See full transcript' below to read the whole conversation."
+            actionLabel="Got it"
+            onAction={() => setTutorialStep(6)}
+            onSkip={skipTutorial}
+          />
+        )}
+
+        {/* Tutorial: History (step 6) */}
+        {user && tutorialStep === 6 && screen === 'choose' && (
+          <TutorialBanner
+            text="To review past sessions, tap on a contact then tap 'Previous conversations'. You can see your full history with each person there."
+            actionLabel="Done"
+            onAction={skipTutorial}
+          />
         )}
       </div></div>
     </div>
@@ -188,7 +298,7 @@ function LoginScreen({ onAuth }) {
       const result = mode === 'signup'
         ? await api.signup(email.trim(), password)
         : await api.login(email.trim(), password);
-      await onAuth(result.token, result.user);
+      await onAuth(result.token, result.user, mode === 'signup');
     } catch (err) { setError(err?.message || 'Something went wrong. Please try again.'); }
     setLoading(false);
   };
@@ -654,6 +764,64 @@ function HistoryScreen({ history, person, onOpen, onBack }) {
             <div className="htension" style={{ background: assertiveColor(c.assertive ?? c.tension) + '22', color: assertiveColor(c.assertive ?? c.tension) }}>{c.assertive ?? c.tension}%</div>
           </div>
         ))}
+      </div>
+    </div>
+  );
+}
+
+function AddPersonModal({ name, rel, onNameChange, onRelChange, onAdd, onCancel }) {
+  return (
+    <div className="modal-overlay">
+      <div className="modal-box">
+        <div className="modal-title">Add person</div>
+        <input
+          className="modal-input"
+          placeholder="Name"
+          value={name}
+          onChange={(e) => onNameChange(e.target.value)}
+          autoFocus
+        />
+        <input
+          className="modal-input"
+          placeholder="Relationship (e.g. flatmate)"
+          value={rel}
+          onChange={(e) => onRelChange(e.target.value)}
+          onKeyDown={(e) => { if (e.key === 'Enter') onAdd(); }}
+        />
+        <div className="modal-actions">
+          <button className="modal-cancel" onClick={onCancel}>Cancel</button>
+          <button className="modal-confirm" onClick={onAdd}>Add</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function TutorialCard({ tag, title, body, primaryLabel, onPrimary, skipLabel, onSkip }) {
+  return (
+    <div className="tutorial-overlay">
+      <div className="tutorial-card">
+        {tag && <div className="tutorial-tag">{tag}</div>}
+        <div className="tutorial-title">{title}</div>
+        <div className="tutorial-body">{body}</div>
+        <button className="tutorial-btn" onClick={onPrimary}>{primaryLabel}</button>
+        {skipLabel && <button className="tutorial-skip" onClick={onSkip}>{skipLabel}</button>}
+      </div>
+    </div>
+  );
+}
+
+function TutorialBanner({ text, actionLabel, onAction, onSkip }) {
+  return (
+    <div className="tutorial-banner">
+      <div className="tutorial-banner-text">{text}</div>
+      <div className="tutorial-banner-actions">
+        {actionLabel && (
+          <button className="tutorial-banner-btn" onClick={onAction}>{actionLabel}</button>
+        )}
+        {onSkip && (
+          <button className="tutorial-banner-skip" onClick={onSkip}>Skip tour</button>
+        )}
       </div>
     </div>
   );

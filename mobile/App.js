@@ -108,6 +108,7 @@ export default function App() {
   const [newRel, setNewRel] = useState('');
   const [noInput, setNoInput] = useState(false);
   const [insightsFromHistory, setInsightsFromHistory] = useState(false);
+  const [tutorialStep, setTutorialStep] = useState(null);
 
   // Restore session on startup
   useEffect(() => {
@@ -130,13 +131,22 @@ export default function App() {
     });
   }, []);
 
-  const handleAuth = async (token, userObj) => {
+  const handleAuth = async (token, userObj, isNew = false) => {
     api.setToken(token);
     await AsyncStorage.setItem('auth_token', token);
     await AsyncStorage.setItem('auth_user', JSON.stringify(userObj));
     const data = await api.getPeople().catch(() => []);
     if (Array.isArray(data)) setPeople(data);
     setUser(userObj);
+    if (isNew) {
+      const done = await AsyncStorage.getItem('tutorial_done').catch(() => null);
+      if (!done) setTutorialStep(0);
+    }
+  };
+
+  const skipTutorial = async () => {
+    await AsyncStorage.setItem('tutorial_done', '1').catch(() => {});
+    setTutorialStep(null);
   };
 
   const handleLogout = async () => {
@@ -148,9 +158,15 @@ export default function App() {
     setConversation(null);
     setMessages([]);
     setScreen('choose');
+    setTutorialStep(null);
   };
 
-  const pickPerson = (p) => { setPerson(p); setSituation(''); setScreen('describe'); };
+  const pickPerson = (p) => {
+    setPerson(p);
+    setSituation('');
+    setScreen('describe');
+    if (tutorialStep === 2) setTutorialStep(3);
+  };
 
   const addPerson = async () => {
     if (!newName.trim()) return;
@@ -159,15 +175,21 @@ export default function App() {
     setNewName('');
     setNewRel('');
     setAddingPerson(false);
+    if (tutorialStep === 1) setTutorialStep(2);
   };
 
-  const startCall = async () => {
+  const doStartCall = async () => {
     const title = situation.split(' ').slice(0, 3).join(' ') || 'Untitled';
     const conv = await api.startConversation(person.id, title, situation);
     const fullConv = await api.getConversation(conv.id);
     setConversation(fullConv);
     setMessages(fullConv.messages || []);
     setScreen('call');
+  };
+
+  const startCall = async () => {
+    if (tutorialStep === 3) { setTutorialStep(4); return; }
+    await doStartCall();
   };
 
   const endCall = async (duration, hasInput) => {
@@ -184,6 +206,7 @@ export default function App() {
     const updated = await api.finish(conversation.id, duration);
     setConversation(updated);
     setScreen('insights');
+    if (tutorialStep === 4) setTutorialStep(5);
   };
 
   const deleteConv = async () => {
@@ -216,6 +239,13 @@ export default function App() {
     } catch (err) {
       Alert.alert('Could not delete conversation', err.message);
     }
+  };
+
+  const goHome = () => {
+    if (tutorialStep === 5) setTutorialStep(6);
+    setNoInput(false);
+    setInsightsFromHistory(false);
+    setScreen('choose');
   };
 
   const openHistory = async () => {
@@ -291,6 +321,62 @@ export default function App() {
         </View>
       </Modal>
 
+      {/* Tutorial modal */}
+      <Modal
+        visible={
+          tutorialStep === 0 ||
+          (tutorialStep === 3 && screen === 'describe') ||
+          (tutorialStep === 5 && screen === 'insights') ||
+          (tutorialStep === 6 && screen === 'choose')
+        }
+        transparent
+        animationType="fade"
+      >
+        <View style={s.tutorialOverlay}>
+          <View style={s.tutorialCard}>
+            {tutorialStep === 0 && (
+              <TutorialStep
+                tag="Getting started · 1 of 4"
+                title="Welcome to Bridge"
+                body="Let's walk you through your first session. Start by adding the person you need to have a difficult conversation with."
+                primaryLabel="Add your first person →"
+                onPrimary={() => { setTutorialStep(1); setAddingPerson(true); }}
+                onSkip={skipTutorial}
+              />
+            )}
+            {tutorialStep === 3 && (
+              <TutorialStep
+                tag="Getting started · 2 of 4"
+                title="Add some context (optional)"
+                body={`You can describe what happened with ${person?.name} to give your coach some background — or leave it blank and go straight into it.`}
+                primaryLabel="Start session →"
+                onPrimary={() => { setTutorialStep(4); doStartCall(); }}
+                onSkip={() => { skipTutorial(); doStartCall(); }}
+              />
+            )}
+            {tutorialStep === 5 && (
+              <TutorialStep
+                tag="Getting started · 3 of 4"
+                title="Your insights"
+                body="After each session you'll see how you communicated — what went well, moments to watch, and your dominant communication style. Tap 'See full transcript' to read the whole conversation."
+                primaryLabel="Got it"
+                onPrimary={() => setTutorialStep(6)}
+                onSkip={skipTutorial}
+              />
+            )}
+            {tutorialStep === 6 && (
+              <TutorialStep
+                tag="Getting started · 4 of 4"
+                title="Your past conversations"
+                body="To revisit a session, tap on a contact then tap 'Previous conversations'. Tap ✕ next to any conversation to delete it."
+                primaryLabel="Done"
+                onPrimary={skipTutorial}
+              />
+            )}
+          </View>
+        </View>
+      </Modal>
+
       {screen === 'choose' && (
         <ChooseScreen people={people} onPick={pickPerson} onAdd={() => setAddingPerson(true)}
           userEmail={user?.email} onLogout={handleLogout} />
@@ -306,14 +392,14 @@ export default function App() {
       )}
       {screen === 'insights' && (
         <InsightsScreen conv={conversation} noInput={noInput}
-          onHome={() => { setNoInput(false); setInsightsFromHistory(false); setScreen('choose'); }}
+          onHome={goHome}
           onBack={insightsFromHistory ? () => { setInsightsFromHistory(false); setScreen('history'); } : null}
           onTranscript={() => setScreen('transcript')}
           onDeleteConversation={deleteConv} />
       )}
       {screen === 'transcript' && (
         <TranscriptScreen conv={conversation} messages={messages}
-          onBack={() => setScreen('insights')} onNew={() => setScreen('choose')} />
+          onBack={() => setScreen('insights')} onNew={goHome} />
       )}
       {screen === 'history' && (
         <HistoryScreen history={history} person={person}
@@ -321,6 +407,24 @@ export default function App() {
           onDeleteConversation={deleteHistoryConv} />
       )}
     </SafeAreaView>
+  );
+}
+
+function TutorialStep({ tag, title, body, primaryLabel, onPrimary, onSkip }) {
+  return (
+    <>
+      {tag ? <Text style={s.tutorialTag}>{tag}</Text> : null}
+      <Text style={s.tutorialTitle}>{title}</Text>
+      <Text style={s.tutorialBody}>{body}</Text>
+      <TouchableOpacity onPress={onPrimary} style={s.tutorialBtn}>
+        <Text style={s.tutorialBtnTx}>{primaryLabel}</Text>
+      </TouchableOpacity>
+      {onSkip ? (
+        <TouchableOpacity onPress={onSkip} style={s.tutorialSkip}>
+          <Text style={s.tutorialSkipTx}>Skip tutorial</Text>
+        </TouchableOpacity>
+      ) : null}
+    </>
   );
 }
 
@@ -387,7 +491,7 @@ function LoginScreen({ onAuth }) {
       const result = mode === 'signup'
         ? await api.signup(email.trim(), password)
         : await api.login(email.trim(), password);
-      await onAuth(result.token, result.user);
+      await onAuth(result.token, result.user, mode === 'signup');
     } catch (e) { setError(e?.message || 'Something went wrong. Please try again.'); }
     setLoading(false);
   };
@@ -1413,6 +1517,17 @@ const s = StyleSheet.create({
   hdelBtn: { width: 36, height: 36, borderRadius: 18, backgroundColor: 'rgba(229,77,77,.1)',
     alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
   hdelTx: { color: '#dc2626', fontSize: 14, fontWeight: '600' },
+
+  // Tutorial
+  tutorialOverlay: { flex: 1, backgroundColor: 'rgba(14,14,26,.88)', alignItems: 'center', justifyContent: 'flex-end', padding: 20, paddingBottom: 36 },
+  tutorialCard: { backgroundColor: '#1c1c2d', borderWidth: 1, borderColor: 'rgba(196,169,110,.35)', borderRadius: 22, padding: 24, width: '100%' },
+  tutorialTag: { fontSize: 11, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.8, color: '#c4a96e', marginBottom: 10 },
+  tutorialTitle: { fontSize: 22, fontWeight: '700', color: '#f0e6d3', marginBottom: 10, lineHeight: 28 },
+  tutorialBody: { fontSize: 14, color: 'rgba(255,255,255,.6)', lineHeight: 22, marginBottom: 22 },
+  tutorialBtn: { backgroundColor: '#c4a96e', borderRadius: 13, padding: 14, alignItems: 'center', marginBottom: 10 },
+  tutorialBtnTx: { color: '#0e0e1a', fontSize: 15, fontWeight: '700' },
+  tutorialSkip: { alignItems: 'center', padding: 10 },
+  tutorialSkipTx: { color: 'rgba(255,255,255,.3)', fontSize: 13 },
 
   // History header (re-uses hd styles so keep ttl/sub/back compatible)
 

@@ -10,7 +10,7 @@ body {
 .phone { width: 360px; height: 740px; background: #0e0e1a; border-radius: 42px; padding: 12px;
   border: 9px solid #1c1c2d; box-shadow: 0 20px 60px rgba(0,0,0,.25); }
 .phone-in { background: #0e0e1a; border-radius: 32px; height: 100%; overflow: hidden;
-  display: flex; flex-direction: column; }
+  display: flex; flex-direction: column; position: relative; }
 
 .statusbar { display: flex; justify-content: space-between; padding: 15px 24px 6px;
   font-size: 11px; color: rgba(255,255,255,.4); }
@@ -209,6 +209,50 @@ body {
   font-family: inherit; cursor: pointer; }
 .demo-btn:hover { background: rgba(255,255,255,.08); }
 .demo-btn:disabled { opacity: .5; cursor: default; }
+
+/* Add person modal */
+.modal-overlay { position: absolute; inset: 0; background: rgba(0,0,0,.65); z-index: 50;
+  display: flex; align-items: center; justify-content: center; padding: 24px; }
+.modal-box { background: #1c1c2d; border: 1px solid rgba(255,255,255,.12); border-radius: 20px;
+  padding: 24px; width: 100%; }
+.modal-title { font-size: 18px; font-weight: 700; color: #f0e6d3; margin-bottom: 16px; }
+.modal-input { background: rgba(255,255,255,.07); border: 1px solid rgba(255,255,255,.12);
+  border-radius: 12px; padding: 12px 14px; color: #f0e6d3; font-size: 14px; font-family: inherit;
+  outline: none; width: 100%; display: block; margin-bottom: 10px; }
+.modal-input::placeholder { color: rgba(255,255,255,.3); }
+.modal-input:focus { border-color: rgba(196,169,110,.5); }
+.modal-actions { display: flex; gap: 10px; margin-top: 14px; }
+.modal-cancel { flex: 1; padding: 12px; border-radius: 12px; border: 1px solid rgba(255,255,255,.12);
+  background: transparent; color: rgba(255,255,255,.4); font-size: 14px; font-family: inherit; cursor: pointer; }
+.modal-confirm { flex: 1; padding: 12px; border-radius: 12px; border: none;
+  background: #c4a96e; color: #0e0e1a; font-size: 14px; font-weight: 600; font-family: inherit; cursor: pointer; }
+
+/* Tutorial: full modal overlay (steps 0, 4) */
+.tutorial-overlay { position: absolute; inset: 0; background: rgba(14,14,26,.88); z-index: 100;
+  display: flex; flex-direction: column; align-items: center; justify-content: flex-end;
+  padding: 20px 20px 28px; }
+.tutorial-card { background: #1c1c2d; border: 1px solid rgba(196,169,110,.3); border-radius: 22px;
+  padding: 26px 22px; width: 100%; }
+.tutorial-tag { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .08em;
+  color: #c4a96e; margin-bottom: 10px; }
+.tutorial-title { font-size: 22px; font-weight: 700; color: #f0e6d3; margin-bottom: 10px; line-height: 1.2; }
+.tutorial-body { font-size: 14px; color: rgba(255,255,255,.6); line-height: 1.6; margin-bottom: 22px; }
+.tutorial-btn { width: 100%; padding: 14px; background: #c4a96e; color: #0e0e1a; border: none;
+  border-radius: 13px; font-size: 15px; font-weight: 600; font-family: inherit; cursor: pointer; margin-bottom: 10px; }
+.tutorial-btn:hover { opacity: .9; }
+.tutorial-skip { width: 100%; padding: 10px; background: transparent; border: none;
+  color: rgba(255,255,255,.3); font-size: 13px; font-family: inherit; cursor: pointer; }
+
+/* Tutorial: floating banner (steps 2, 3, 5, 6) */
+.tutorial-banner { position: absolute; bottom: 16px; left: 14px; right: 14px; z-index: 90;
+  background: rgba(28,28,45,.97); border: 1px solid rgba(196,169,110,.3); border-radius: 18px;
+  padding: 18px 18px 14px; box-shadow: 0 -4px 24px rgba(0,0,0,.3); }
+.tutorial-banner-text { font-size: 13px; color: rgba(255,255,255,.75); line-height: 1.55; margin-bottom: 12px; }
+.tutorial-banner-actions { display: flex; align-items: center; gap: 10px; }
+.tutorial-banner-btn { padding: 9px 18px; background: #c4a96e; color: #0e0e1a; border: none;
+  border-radius: 11px; font-size: 13px; font-weight: 600; font-family: inherit; cursor: pointer; }
+.tutorial-banner-skip { padding: 9px; background: transparent; border: none;
+  color: rgba(255,255,255,.3); font-size: 13px; font-family: inherit; cursor: pointer; }
 
 /* Desktop: bigger phone frame + larger text */
 @media (min-width: 601px) {
