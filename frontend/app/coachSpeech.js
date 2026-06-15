@@ -100,14 +100,29 @@ function playMp3Base64(base64) {
   activeAudio = audio;
 
   return new Promise((resolve) => {
-    const done = () => {
+    let settled = false;
+    let fallbackTimer = null;
+    const finish = () => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(fallbackTimer);
       URL.revokeObjectURL(url);
       if (activeAudio === audio) activeAudio = null;
       resolve();
     };
-    audio.onended = done;
-    audio.onerror = done;
-    audio.play().catch(done);
+    // Safari often doesn't fire the onended property — addEventListener is more reliable
+    audio.addEventListener('ended', finish, { once: true });
+    audio.addEventListener('error', finish, { once: true });
+    // Once we know the duration, set a tight fallback so we never hang
+    audio.addEventListener('loadedmetadata', () => {
+      const ms = Number.isFinite(audio.duration) && audio.duration > 0
+        ? (audio.duration + 1.5) * 1000
+        : 30000;
+      fallbackTimer = setTimeout(finish, ms);
+    }, { once: true });
+    // Hard cap in case metadata never loads
+    fallbackTimer = setTimeout(finish, 45000);
+    audio.play().catch(finish);
   });
 }
 
