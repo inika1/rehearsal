@@ -112,7 +112,7 @@ export default function App() {
 
   // Restore session on startup
   useEffect(() => {
-    configureCoachSpeech(API);
+    configureCoachSpeech();
     AsyncStorage.getItem('auth_token').then(async (token) => {
       if (token) {
         api.setToken(token);
@@ -766,7 +766,7 @@ function CallScreen({ person, conversation, messages, setMessages, onEnd }) {
     });
     busyRef.current = true;
     setBusy(true);
-    await speakCoachText(text, { audioBase64: audio });
+    await speakCoachText(text);
     if (!activeRef.current) return;
     if (pausedRef.current) {
       pendingCoachRef.current = { reply: text, audio, done };

@@ -8,7 +8,7 @@
     "userInterfaceStyle": "light",
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.anshigoyal.mobile",
+      "bundleIdentifier": "com.aisling.bridge",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false,
         "NSMicrophoneUsageDescription": "Bridge uses your microphone so your coach can hear you during prep sessions.",
@@ -22,7 +22,7 @@
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
       },
-      "package": "com.anshigoyal.mobile",
+      "package": "com.aisling.bridge",
       "permissions": [
         "android.permission.RECORD_AUDIO"
       ]
@@ -36,7 +36,8 @@
       }
     },
     "plugins": [
-      "expo-speech-recognition"
+      "expo-speech-recognition",
+      "expo-audio"
     ]
   }
 }
